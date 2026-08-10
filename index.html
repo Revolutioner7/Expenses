@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Gastos</title>
+
+<link rel="manifest" href="./manifest.webmanifest">
+<meta name="theme-color" content="#E4E9E2">
+<meta name="description" content="Control de gastos e ingresos mensuales, sin conexión y sin cuentas.">
+
+<!-- iPhone: abrir a pantalla completa y nombre bajo el icono -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Gastos">
+<link rel="apple-touch-icon" href="./apple-touch-icon.png">
+<link rel="icon" href="./icon-192.png">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+
+<style>
+  html, body { margin: 0; padding: 0; background: #E4E9E2; }
+  body { font-family: 'Karla', system-ui, -apple-system, sans-serif; }
+  #boot {
+    min-height: 100vh; display: grid; place-items: center;
+    color: #5F6F68; font-size: 13px; letter-spacing: .12em; text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+  <div id="root"><div id="boot">Abriendo el cuaderno…</div></div>
+  <script src="./bundle.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('./sw.js').catch(function () {});
+      });
+    }
+  </script>
+</body>
+</html>
