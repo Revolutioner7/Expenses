@@ -1,5 +1,5 @@
 /* Cuaderno de gastos — funciona sin conexión */
-const CACHE = 'gastos-v3';
+const CACHE = 'gastos-v5';
 const SHELL = [
   './',
   './index.html',
