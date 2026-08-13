@@ -1,5 +1,5 @@
 /* Cuaderno de gastos — funciona sin conexión */
-const CACHE = 'gastos-v2';
+const CACHE = 'gastos-v3';
 const SHELL = [
   './',
   './index.html',
@@ -9,7 +9,18 @@ const SHELL = [
   './icon-512.png',
   './icon-512-maskable.png',
   './apple-touch-icon.png',
+  './font-bricolage.woff2',
+  './font-karla.woff2',
+  './font-mono-400.woff2',
+  './font-mono-500.woff2',
+  './font-mono-600.woff2',
 ];
+
+/* con cobertura mala no esperamos indefinidamente: a 1,5 s tiramos de la copia local */
+const conLimite = (req, ms) => new Promise((ok, ko) => {
+  const t = setTimeout(() => ko(new Error('lenta')), ms);
+  fetch(req).then((r) => { clearTimeout(t); ok(r); }, (e) => { clearTimeout(t); ko(e); });
+});
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));
@@ -30,9 +41,9 @@ self.addEventListener('fetch', (e) => {
   // navegación: primero la red, y si no hay, la copia guardada
   if (req.mode === 'navigate') {
     e.respondWith(
-      fetch(req)
+      conLimite(req, 1500)
         .then((r) => { caches.open(CACHE).then((c) => c.put('./index.html', r.clone())); return r; })
-        .catch(() => caches.match('./index.html'))
+        .catch(() => caches.match('./index.html').then((hit) => hit || fetch(req)))
     );
     return;
   }
