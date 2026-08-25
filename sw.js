@@ -1,5 +1,5 @@
-/* Cuaderno de gastos — funciona sin conexión */
-const CACHE = 'gastos-v5';
+/* Cosecha — funciona sin conexión */
+const CACHE = 'cosecha-v1';
 const SHELL = [
   './',
   './index.html',

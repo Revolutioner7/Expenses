@@ -3,24 +3,9 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>Gastos</title>
+<title>Cosecha</title>
 
 <link rel="manifest" href="./manifest.webmanifest">
-<meta http-equiv="Content-Security-Policy" content="
-  default-src 'self';
-  script-src 'self';
-  style-src 'self' 'unsafe-inline';
-  font-src 'self';
-  img-src 'self' data: blob:;
-  connect-src 'self';
-  manifest-src 'self';
-  worker-src 'self';
-  media-src 'none';
-  object-src 'none';
-  frame-src 'none';
-  frame-ancestors 'none';
-  base-uri 'none';
-  form-action 'none'">
 <meta name="theme-color" content="#E4E9E2">
 <meta name="description" content="Control de gastos e ingresos mensuales, sin conexión y sin cuentas.">
 
@@ -28,7 +13,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
-<meta name="apple-mobile-web-app-title" content="Gastos">
+<meta name="apple-mobile-web-app-title" content="Cosecha">
 <link rel="apple-touch-icon" href="./apple-touch-icon.png">
 <link rel="icon" href="./icon-192.png">
 
@@ -45,7 +30,14 @@
 </style>
 </head>
 <body>
-  <div id="root"><div id="boot">Abriendo el cuaderno…</div></div>
+  <div id="root"><div id="boot">Abriendo la cosecha…</div></div>
   <script src="./bundle.js"></script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', function () {
+        navigator.serviceWorker.register('./sw.js').catch(function () {});
+      });
+    }
+  </script>
 </body>
 </html>
