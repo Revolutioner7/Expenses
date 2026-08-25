@@ -1,5 +1,5 @@
 /* Cosecha — funciona sin conexión */
-const CACHE = 'cosecha-v1';
+const CACHE = 'cosecha-v2';
 const SHELL = [
   './',
   './index.html',

@@ -149,6 +149,8 @@ const SWATCHES = [
 ];
 
 /* reparto 50/30/20: cada categoría es necesidad, deseo o ahorro */
+const APP_VERSION = "2.0.0";
+
 const BUCKETS = [
   { id: "necesidad", label: "Gasto", target: 50, color: "#1E4E45" },
   { id: "deseo", label: "Deseo", target: 30, color: "#D99A2B" },
@@ -516,7 +518,10 @@ const CSS = `
 .cg-big small{font-size:.45em;font-weight:500;color:#8DA39A;letter-spacing:0;}
 .cg-hero.over .cg-big{color:#F0A79B;}
 .cg-sub{font-size:12.5px;color:#9FB3AA;font-family:var(--mono);letter-spacing:.02em;}
-.cg-coachmsg{font-size:12px;color:#B9C9C0;margin-top:4px;}
+.cg-coachbox{display:flex;align-items:center;gap:10px;background:#FBEFDA;border-radius:14px;padding:10px 14px;margin:8px 0 14px;font-size:12.5px;font-weight:500;color:#6B4816;}
+.cg-coachicon{width:26px;height:26px;border-radius:50%;background:#D99A2B;color:#4A2F08;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px;animation:cg-pulse 1.8s ease-in-out infinite;}
+@keyframes cg-pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.15);}}
+.cg-vermas{border:0;background:transparent;font-family:var(--body);font-size:12px;font-weight:600;color:var(--pine);cursor:pointer;padding:4px;}
 
 .cg-eye{position:absolute;top:14px;right:14px;width:32px;height:32px;border-radius:50%;border:0;
   background:rgba(242,245,241,.12);color:#F2F5F1;cursor:pointer;display:grid;place-items:center;padding:0;}
@@ -688,6 +693,40 @@ const EyeIcon = ({ off }) => (
     )}
   </svg>
 );
+
+/* ── lista que colapsa a 3 elementos, con "ver más" y "ver menos" (este último aparece
+   dos veces cuando está expandida: donde estaba "ver más", y al final de la lista) ── */
+function ExpandableList({ items, expanded, onToggle, renderItem }) {
+  const visible = expanded ? items : items.slice(0, 3);
+  const restCount = items.length - 3;
+  return (
+    <>
+      {visible.map(renderItem)}
+      {items.length > 3 && (
+        <div style={{ textAlign: "center", marginTop: 8 }}>
+          <button className="cg-vermas" onClick={onToggle}>
+            {expanded ? "Ver menos" : `Ver más (${restCount})`}
+          </button>
+        </div>
+      )}
+      {expanded && items.length > 3 && (
+        <div style={{ textAlign: "center", marginTop: 8 }}>
+          <button className="cg-vermas" onClick={onToggle}>Ver menos</button>
+        </div>
+      )}
+    </>
+  );
+}
+
+/* ── caja de coach: mensaje de ánimo, reutilizable en Mes y Resumen ── */
+function CoachBox({ msg }) {
+  return (
+    <div className="cg-coachbox">
+      <div className="cg-coachicon"><i className="ti ti-trending-up" aria-hidden="true"></i></div>
+      <span>{msg}</span>
+    </div>
+  );
+}
 
 /* ── hoja modal ── */
 function Sheet({ children, onClose, title }) {
@@ -1005,10 +1044,14 @@ function AddExpense({ categories, learned, onAdd, onNewCategory, justCreated }) 
             </button>
           ))}
           <button className="cg-chip add" onClick={onNewCategory}>+ Nueva</button>
-          {!catExpanded && categories.length > 4 && (
-            <button className="cg-chip" onClick={() => setCatExpanded(true)}>Ver más</button>
-          )}
         </div>
+        {categories.length > 4 && (
+          <div style={{ textAlign: "right", marginTop: 6 }}>
+            <button className="cg-vermas" onClick={() => setCatExpanded((v) => !v)}>
+              {catExpanded ? "Ver menos" : "Ver más"}
+            </button>
+          </div>
+        )}
       </div>
 
       <button className="cg-btn" onClick={submit} disabled={!valid}>Añadir gasto</button>
@@ -1483,6 +1526,11 @@ function Forecast({ monthKey, months, recurring, categories }) {
   const varAvg = hist.length ? avgOf((m) => m.expenses.filter((e) => !e.fixed && !saveIds.has(e.categoryId)).reduce((t, e) => t + e.amount, 0)) : null;
   const incAvg = hist.length ? avgOf((m) => (m.incomes || []).reduce((t, i) => t + i.amount, 0)) : null;
 
+  /* "hist" solo dice que el mes existe; para el disclaimer hace falta saber si de verdad aportó
+     algo de gasto variable o de ingresos (un mes con un único fijo cuenta como "hist" pero no aporta nada) */
+  const histConVariable = hist.filter((k) => (months[k]?.expenses || []).some((e) => !e.fixed && !saveIds.has(e.categoryId)));
+  const histConIngresos = hist.filter((k) => (months[k]?.incomes || []).length);
+
   const income = fixIn > 0 ? fixIn : incAvg || 0;
   const variable = varAvg || 0;
   const left = income - fixOut - variable - fixSave;
@@ -1500,11 +1548,13 @@ function Forecast({ monthKey, months, recurring, categories }) {
 
   const rows = [
     { label: "Ingresos previstos", value: income, sign: 1,
-      note: fixIn > 0 ? "de tus ingresos fijos" : `media de ${hist.length} ${hist.length === 1 ? "mes" : "meses"}` },
+      note: fixIn > 0 ? "de tus ingresos fijos" : (histConIngresos.length ? `media de ${histConIngresos.length} ${histConIngresos.length === 1 ? "mes" : "meses"}` : "sin historial aún"),
+      sinDatos: fixIn <= 0 && !histConIngresos.length },
     { label: "Gastos fijos", value: fixOut, sign: -1,
       note: due.filter((r) => r.kind === "gasto" && !saveIds.has(r.categoryId)).length + " de alta ese mes" },
     { label: "Gasto variable", value: variable, sign: -1,
-      note: hist.length ? `media de ${hist.length} ${hist.length === 1 ? "mes" : "meses"}` : "sin historial aún" },
+      note: histConVariable.length ? `media de ${histConVariable.length} ${histConVariable.length === 1 ? "mes" : "meses"}` : "sin historial aún",
+      sinDatos: !histConVariable.length },
   ];
   if (fixSave > 0) rows.push({ label: "Ahorro fijo", value: fixSave, sign: -1, note: "apartado automático" });
 
@@ -1513,12 +1563,19 @@ function Forecast({ monthKey, months, recurring, categories }) {
       <h2 className="cg-title">Previsión de {monthLabel(next).toLowerCase()}</h2>
 
       {rows.map((r) => (
-        <div key={r.label} className="cg-splitrow">
-          <span style={{ fontWeight: 500 }}>{r.label}</span>
-          <span className="cg-meta" style={{ marginLeft: 2 }}>{r.note}</span>
-          <span className="cg-splitnum" style={{ color: r.sign < 0 ? "var(--muted)" : "var(--pine)" }}>
-            {r.sign < 0 ? "−" : "+"}{eur(r.value)} €
-          </span>
+        <div key={r.label}>
+          <div className="cg-splitrow">
+            <span style={{ fontWeight: 500 }}>{r.label}</span>
+            <span className="cg-meta" style={{ marginLeft: 2 }}>{r.note}</span>
+            <span className="cg-splitnum" style={{ color: r.sign < 0 ? "var(--muted)" : "var(--pine)" }}>
+              {r.sign < 0 ? "−" : "+"}{eur(r.value)} €
+            </span>
+          </div>
+          {r.sinDatos && r.value === 0 && (
+            <p style={{ fontSize: 11.5, color: "var(--muted)", margin: "2px 0 4px", lineHeight: 1.4 }}>
+              La previsión usa los últimos 3 meses cerrados. Hace falta al menos uno completo, con todos los gastos anotados, para poder estimarla.
+            </p>
+          )}
         </div>
       ))}
 
@@ -2162,7 +2219,7 @@ export default function App() {
       const file = new File([blob], filename, { type: "application/json" });
       if (navigator.canShare({ files: [file] })) {
         try {
-          await navigator.share({ files: [file], title: "Copia de Cosecha" });
+          await navigator.share({ files: [file] });
           hecho = true;
         } catch (e) {
           if (e && e.name === "AbortError") return; // ha cancelado, no insistimos con la descarga
@@ -2266,30 +2323,64 @@ export default function App() {
     setData({ version: 8, categories: DEFAULT_CATEGORIES, months: {}, learned: {}, recurring: [] });
   };
 
-  /* barra del mes */
-  const base = Math.max(income, used) || 1;
   const isCurrentMonth = monthKey === monthKeyOf(new Date());
   const daysInMonth = new Date(Number(monthKey.split("-")[0]), Number(monthKey.split("-")[1]), 0).getDate();
 
-  /* mensaje de coach: proyección de cierre de este mes frente al gasto real del anterior */
+  /* motor de mensajes de coach: varias candidatas por prioridad, con guardia de historial mínimo
+     (evita comparar contra un mes con apenas apuntes, que es lo que causaba el 1703%) */
+  const HIST_MIN_APUNTES = 5;
   const prevMonthKey = shiftMonth(monthKey, -1);
+  const daysInPrevMonth = new Date(Number(prevMonthKey.split("-")[0]), Number(prevMonthKey.split("-")[1]), 0).getDate();
+  const prevMonthData = data?.months?.[prevMonthKey] || null;
+  const prevMonthApuntes = (prevMonthData?.expenses?.length || 0) + (prevMonthData?.incomes?.length || 0);
+  const suficienteHistorial = prevMonthApuntes >= HIST_MIN_APUNTES;
+
   const prevSpent = useMemo(() => {
-    const pm = data?.months?.[prevMonthKey];
-    if (!pm) return 0;
-    return (pm.expenses || [])
+    if (!prevMonthData) return 0;
+    return (prevMonthData.expenses || [])
       .filter((e) => catById[e.categoryId]?.bucket !== "ahorro")
       .reduce((s, e) => s + e.amount, 0);
-  }, [data, prevMonthKey, catById]);
+  }, [prevMonthData, catById]);
+
+  const diaHoy = new Date().getDate();
+  const diaCorte = Math.min(diaHoy, daysInPrevMonth);
+  const prevToDate = useMemo(() => {
+    if (!prevMonthData) return { income: 0, used: 0 };
+    const inc = (prevMonthData.incomes || [])
+      .filter((i) => Number((i.date || `${prevMonthKey}-01`).slice(-2)) <= diaCorte)
+      .reduce((s, i) => s + i.amount, 0);
+    const used = (prevMonthData.expenses || [])
+      .filter((e) => Number(e.date.slice(-2)) <= diaCorte)
+      .reduce((s, e) => s + e.amount, 0);
+    return { income: inc, used };
+  }, [prevMonthData, diaCorte, prevMonthKey]);
+
   const coachMsg = useMemo(() => {
-    if (!modoCoach || !isCurrentMonth || prevSpent <= 0 || spent <= 0) return null;
-    const diaHoy = new Date().getDate();
-    const proyeccion = (spent / diaHoy) * daysInMonth;
-    const pct = ((prevSpent - proyeccion) / prevSpent) * 100;
-    if (Math.abs(pct) < 3) return null; // diferencia poco significativa, mejor no decir nada
-    return pct > 0
-      ? `${Math.round(pct)}% mejor que ${monthLabel(prevMonthKey).toLowerCase()}, sigue así`
-      : `${Math.round(Math.abs(pct))}% por encima de ${monthLabel(prevMonthKey).toLowerCase()}, aún puedes ajustar`;
-  }, [modoCoach, isCurrentMonth, prevSpent, spent, daysInMonth, prevMonthKey]);
+    if (!modoCoach || !isCurrentMonth) return null;
+
+    /* candidata 1: proyección de cierre de este mes, mejor que el gasto real del anterior */
+    if (suficienteHistorial && prevSpent > 0 && spent > 0) {
+      const proyeccion = (spent / diaHoy) * daysInMonth;
+      const pct = ((prevSpent - proyeccion) / prevSpent) * 100;
+      if (pct >= 3) return `${Math.round(pct)}% mejor que ${monthLabel(prevMonthKey).toLowerCase()}, sigue así`;
+    }
+
+    /* candidata 2: más disponible que el mes anterior, en el mismo día */
+    if (suficienteHistorial) {
+      const prevLeftToDate = prevToDate.income - prevToDate.used;
+      const diff = left - prevLeftToDate;
+      if (diff >= 15) return `Hoy tienes ${eur(diff)} € más disponible que en ${monthLabel(prevMonthKey).toLowerCase()} a estas alturas`;
+    }
+
+    /* candidata 3: más ingresos que el mes anterior, en el mismo día */
+    if (suficienteHistorial) {
+      const diffInc = income - prevToDate.income;
+      if (diffInc >= 15) return `Has ingresado ${eur(diffInc)} € más que en ${monthLabel(prevMonthKey).toLowerCase()} a estas alturas`;
+    }
+
+    /* ninguna candidata es cierta: ánimo neutro, sin inventar comparaciones */
+    return "Llevas todo el mes anotado, eso ya suma.";
+  }, [modoCoach, isCurrentMonth, suficienteHistorial, prevSpent, spent, diaHoy, daysInMonth, prevMonthKey, prevToDate, left, income]);
 
   const totalGastosSiempre = useMemo(
     () => Object.values(data?.months || {}).reduce((s, m) => s + (m.expenses || []).length, 0),
@@ -2303,9 +2394,6 @@ export default function App() {
   }, [data?.lastBackupAt]);
   const avisarCopia = isCurrentMonth && totalGastosSiempre >= 5 &&
     (diasSinCopia === null || diasSinCopia >= 21);
-  const paceLeft = isCurrentMonth && income > 0
-    ? Math.min(100, ((new Date().getDate() / daysInMonth) * income / base) * 100)
-    : null;
 
   const grouped = useMemo(() => {
     const todo = [
@@ -2321,18 +2409,27 @@ export default function App() {
   useEffect(() => { setShowAllMov(false); }, [monthKey]);
   const [searchQ, setSearchQ] = useState("");
   useEffect(() => { if (tab !== "mes") setSearchQ(""); }, [tab]);
+  const [expByCategory, setExpByCategory] = useState(false);
+  const [expFijos, setExpFijos] = useState(false);
+  const [expCatLimites, setExpCatLimites] = useState(false);
   const movCount = month.expenses.length + month.incomes.length;
-  const visibleGrouped = useMemo(() => {
-    if (showAllMov) return grouped;
+  const { firstGrouped, restGrouped } = useMemo(() => {
     let restante = 3;
-    const out = [];
+    const first = [];
+    const rest = [];
     for (const [date, items] of grouped) {
-      if (restante <= 0) break;
-      out.push([date, items.slice(0, restante)]);
-      restante -= Math.min(restante, items.length);
+      if (restante > 0) {
+        const take = items.slice(0, restante);
+        first.push([date, take]);
+        const leftover = items.slice(restante);
+        restante -= take.length;
+        if (leftover.length) rest.push([date, leftover]);
+      } else {
+        rest.push([date, items]);
+      }
     }
-    return out;
-  }, [grouped, showAllMov]);
+    return { firstGrouped: first, restGrouped: rest };
+  }, [grouped]);
 
   /* buscador de movimientos: cruza todos los meses guardados, por proximidad de texto */
   const searchResults = useMemo(() => {
@@ -2390,7 +2487,7 @@ export default function App() {
           </div>
         </div>
 
-        {/* héroe: disponible + barra segmentada del mes */}
+        {/* héroe: disponible */}
         <div className={`cg-hero ${left < 0 && !oculto ? "over" : ""}`}>
           <button className="cg-eye" onClick={toggleOculto} aria-pressed={oculto}
             aria-label={oculto ? "Mostrar el disponible" : "Ocultar el disponible"}
@@ -2407,31 +2504,9 @@ export default function App() {
               ? "importes ocultos"
               : `${eur(income)} recibido · ${eur(spent)} gastado${saved > 0 ? ` · ${eur(saved)} apartado` : ""}`}
           </div>
-          {!oculto && coachMsg && (
-            <div className="cg-coachmsg">{coachMsg}</div>
-          )}
-
-          <div className="cg-bar" role="img"
-            aria-label={`Gastado ${eur(spent)} euros de ${eur(income)} recibidos`}>
-            {catTotals.map((c) => (
-              <div key={c.id} className="cg-seg" style={{ width: `${(c.total / base) * 100}%`, background: c.color }} />
-            ))}
-            {paceLeft !== null && (
-              <div className="cg-tick" style={{ left: `${paceLeft}%` }}><span>hoy</span></div>
-            )}
-          </div>
-
-          {catTotals.length > 0 ? (
-            <div className="cg-legend">
-              {catTotals.slice(0, 4).map((c) => (
-                <div key={c.id}><i className="cg-dot" style={{ background: c.color }} />{c.name}{oculto ? "" : ` ${eur(c.total)}`}</div>
-              ))}
-              {catTotals.length > 4 && <div>+{catTotals.length - 4} más</div>}
-            </div>
-          ) : (
-            <div className="cg-legend"><div>La barra se llena con cada gasto que anotes.</div></div>
-          )}
         </div>
+
+        {!oculto && coachMsg && <CoachBox msg={coachMsg} />}
 
         <div className="cg-tabs" role="tablist">
           {[["mes", "Mes"], ["resumen", "Resumen"], ["fijos", "Fijos"], ["ajustes", "Ajustes"]].map(([k, label]) => (
@@ -2542,7 +2617,7 @@ export default function App() {
                 <p className="cg-empty">Todavía no hay nada en {monthLabel(monthKey).toLowerCase()}.<br />Anota el primer gasto arriba.</p>
               ) : (
                 <>
-                  {visibleGrouped.map(([date, items]) => (
+                  {firstGrouped.map(([date, items]) => (
                     <div key={date}>
                       <div className="cg-day">{dayLabel(date)}</div>
                       {items.map((m) => {
@@ -2573,10 +2648,51 @@ export default function App() {
                       })}
                     </div>
                   ))}
-                  {!showAllMov && movCount > 3 && (
-                    <button className="cg-ghost" style={{ marginTop: 8, width: "100%" }} onClick={() => setShowAllMov(true)}>
-                      Ver todas ({movCount})
-                    </button>
+
+                  {movCount > 3 && (
+                    <div style={{ textAlign: "center", marginTop: 8 }}>
+                      <button className="cg-vermas" onClick={() => setShowAllMov((v) => !v)}>
+                        {showAllMov ? "Ver menos" : `Ver más (${movCount - 3})`}
+                      </button>
+                    </div>
+                  )}
+
+                  {showAllMov && restGrouped.map(([date, items]) => (
+                    <div key={`rest-${date}`}>
+                      <div className="cg-day">{dayLabel(date)}</div>
+                      {items.map((m) => {
+                        if (m.tipo === "ingreso") {
+                          return (
+                            <button key={m.id} className="cg-item"
+                              onClick={() => setSheet({ type: "income", payload: m })}>
+                              <div className="cg-badge" style={{ background: "#E1EFE2" }}>＋</div>
+                              <div style={{ minWidth: 0 }}>
+                                <div className="cg-name">{m.label}</div>
+                                <div className="cg-meta">ingreso{m.fixed ? " · fijo" : ""}</div>
+                              </div>
+                              <span className="cg-amt" style={{ color: "var(--pine)" }}>+{eur(m.amount)} €</span>
+                            </button>
+                          );
+                        }
+                        const c = catById[m.categoryId];
+                        return (
+                          <button key={m.id} className="cg-item" onClick={() => setSheet({ type: "expense", payload: m })}>
+                            <div className="cg-badge" style={{ background: (c?.color || "#888") + "22" }}>{c?.emoji || "🏷️"}</div>
+                            <div style={{ minWidth: 0 }}>
+                              <div className="cg-name">{m.name}</div>
+                              <div className="cg-meta">{c?.name || "Sin categoría"}{m.fixed ? " · fijo" : m.time ? ` · ${m.time}` : ""}</div>
+                            </div>
+                            <span className="cg-amt">−{eur(m.amount)} €</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  ))}
+
+                  {showAllMov && movCount > 3 && (
+                    <div style={{ textAlign: "center", marginTop: 8 }}>
+                      <button className="cg-vermas" onClick={() => setShowAllMov(false)}>Ver menos</button>
+                    </div>
                   )}
                 </>
               )}
@@ -2596,11 +2712,6 @@ export default function App() {
                   <span className="cg-eyebrow">Queda</span><b style={{ color: left < 0 ? "var(--red)" : "var(--pine)" }}>{eur(left)} €</b>
                 </div>
               </div>
-              {saved > 0 && (
-                <p className="cg-hint" style={{ marginTop: 10, marginBottom: 0 }}>
-                  Más {eur(saved)} € apartados al ahorro, que también salen del disponible pero no cuentan como gasto.
-                </p>
-              )}
               {isCurrentMonth && spent > 0 && (
                 <p style={{ fontSize: 12.5, color: "var(--muted)", marginTop: 12, marginBottom: 0 }}>
                   Media de {eur(spent / new Date().getDate())} € al día. A este ritmo cerrarás el mes en{" "}
@@ -2609,12 +2720,22 @@ export default function App() {
               )}
             </div>
 
+            {!oculto && coachMsg && <CoachBox msg={coachMsg} />}
+
             {savingCats.length > 0 && (
               <div className="cg-card">
-                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
-                  <h2 className="cg-title">Apartado al ahorro</h2>
+                <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8, marginBottom: saved > 0 ? 8 : 0 }}>
+                  <span style={{ display: "flex", alignItems: "center", gap: 7 }}>
+                    <i className="ti ti-moneybag" style={{ fontSize: 16, color: "var(--pine)" }} aria-hidden="true"></i>
+                    <h2 className="cg-title" style={{ margin: 0 }}>Ahorro</h2>
+                  </span>
                   <span style={{ fontFamily: "var(--mono)", fontSize: 15 }}>{eur(saved)} €</span>
                 </div>
+                {saved > 0 && (
+                  <p className="cg-hint" style={{ marginTop: 0, marginBottom: 10 }}>
+                    Más {eur(saved)} € apartados al ahorro, que también salen del disponible pero no cuentan como gasto.
+                  </p>
+                )}
                 {savingCats.map((c) => (
                   <button key={c.id} className="cg-item" onClick={() => setSheet({ type: "detail", payload: c })}>
                     <div className="cg-badge" style={{ background: c.color + "22" }}>{c.emoji}</div>
@@ -2651,33 +2772,38 @@ export default function App() {
                     Toca una categoría para ver todos sus gastos con día y hora.
                     {saved > 0 ? " El ahorro no entra en este reparto." : ""}
                   </p>
-                  {byCategory.map((c) => {
-                    const pct = spent > 0 ? (c.total / spent) * 100 : 0;
-                    const overBudget = c.budget && c.total > c.budget;
-                    const barBase = Math.max(byCategory[0].total, c.budget || 0);
-                    return (
-                      <button key={c.id} className="cg-catrow" onClick={() => setSheet({ type: "detail", payload: c })}>
-                        <div className="cg-catline">
-                          <span>{c.emoji}</span>
-                          <span style={{ fontWeight: 500 }}>{c.name}</span>
-                          <span className="cg-pct" style={{ fontFamily: "var(--mono)" }}>
-                            {eur(c.total)} € · {pct.toFixed(0)}%
-                          </span>
-                        </div>
-                        <div className="cg-track">
-                          <div className="cg-fill" style={{ width: `${(c.total / barBase) * 100}%`, background: overBudget ? "var(--red)" : c.color }} />
-                          {c.budget ? <div className="cg-limit" style={{ left: `${Math.min(100, (c.budget / barBase) * 100)}%` }} /> : null}
-                        </div>
-                        {c.budget ? (
-                          <div className="cg-meta" style={{ color: overBudget ? "var(--red)" : "var(--muted)" }}>
-                            {overBudget
-                              ? `${eur(c.total - c.budget)} € por encima del límite de ${eur(c.budget)} €`
-                              : `Quedan ${eur(c.budget - c.total)} € de ${eur(c.budget)} €`}
+                  <ExpandableList
+                    items={byCategory}
+                    expanded={expByCategory}
+                    onToggle={() => setExpByCategory((v) => !v)}
+                    renderItem={(c) => {
+                      const pct = spent > 0 ? (c.total / spent) * 100 : 0;
+                      const overBudget = c.budget && c.total > c.budget;
+                      const barBase = Math.max(byCategory[0].total, c.budget || 0);
+                      return (
+                        <button key={c.id} className="cg-catrow" onClick={() => setSheet({ type: "detail", payload: c })}>
+                          <div className="cg-catline">
+                            <span>{c.emoji}</span>
+                            <span style={{ fontWeight: 500 }}>{c.name}</span>
+                            <span className="cg-pct" style={{ fontFamily: "var(--mono)" }}>
+                              {eur(c.total)} € · {pct.toFixed(0)}%
+                            </span>
                           </div>
-                        ) : null}
-                      </button>
-                    );
-                  })}
+                          <div className="cg-track">
+                            <div className="cg-fill" style={{ width: `${(c.total / barBase) * 100}%`, background: overBudget ? "var(--red)" : c.color }} />
+                            {c.budget ? <div className="cg-limit" style={{ left: `${Math.min(100, (c.budget / barBase) * 100)}%` }} /> : null}
+                          </div>
+                          {c.budget ? (
+                            <div className="cg-meta" style={{ color: overBudget ? "var(--red)" : "var(--muted)" }}>
+                              {overBudget
+                                ? `${eur(c.total - c.budget)} € por encima del límite de ${eur(c.budget)} €`
+                                : `Quedan ${eur(c.budget - c.total)} € de ${eur(c.budget)} €`}
+                            </div>
+                          ) : null}
+                        </button>
+                      );
+                    }}
+                  />
                 </>
               )}
             </div>
@@ -2709,28 +2835,33 @@ export default function App() {
               {recurring.length === 0 ? (
                 <p className="cg-empty">Sin fijos todavía.<br />Empieza por el alquiler y la nómina, que son los seguros.</p>
               ) : (
-                recurring.map((r) => {
-                  const state = (month.applied || {})[r.id];
-                  const toca = dueIn(r, monthKey);
-                  const prox = nextDue(r, monthKey);
-                  return (
-                    <button key={r.id} className="cg-item" onClick={() => setSheet({ type: "fixed", payload: r })}>
-                      <div className="cg-badge" style={{ background: r.kind === "ingreso" ? "#EAF0E8" : (catById[r.categoryId]?.color || "#888") + "22" }}>
-                        {r.kind === "ingreso" ? "＋" : catById[r.categoryId]?.emoji || "🏷️"}
-                      </div>
-                      <div style={{ minWidth: 0 }}>
-                        <div className="cg-name">{r.name}</div>
-                        <div className="cg-meta">
-                          día {r.day} · {freqLabel(r)}{r.auto === false ? " · manual" : ""} · {r.kind === "ingreso" ? "ingreso" : catById[r.categoryId]?.name || "—"}
+                <ExpandableList
+                  items={recurring}
+                  expanded={expFijos}
+                  onToggle={() => setExpFijos((v) => !v)}
+                  renderItem={(r) => {
+                    const state = (month.applied || {})[r.id];
+                    const toca = dueIn(r, monthKey);
+                    const prox = nextDue(r, monthKey);
+                    return (
+                      <button key={r.id} className="cg-item" onClick={() => setSheet({ type: "fixed", payload: r })}>
+                        <div className="cg-badge" style={{ background: r.kind === "ingreso" ? "#EAF0E8" : (catById[r.categoryId]?.color || "#888") + "22" }}>
+                          {r.kind === "ingreso" ? "＋" : catById[r.categoryId]?.emoji || "🏷️"}
                         </div>
-                      </div>
-                      <span className="cg-amt">{r.kind === "ingreso" ? "" : "−"}{eur(r.amount)} €</span>
-                      <span className={`cg-tag ${state && state !== "skip" ? "ok" : ""}`} style={{ marginLeft: 8 }}>
-                        {state === "skip" ? "saltado" : state ? "anotado" : toca ? "pendiente" : prox ? shortMonth(prox) : "—"}
-                      </span>
-                    </button>
-                  );
-                })
+                        <div style={{ minWidth: 0 }}>
+                          <div className="cg-name">{r.name}</div>
+                          <div className="cg-meta">
+                            día {r.day} · {freqLabel(r)}{r.auto === false ? " · manual" : ""} · {r.kind === "ingreso" ? "ingreso" : catById[r.categoryId]?.name || "—"}
+                          </div>
+                        </div>
+                        <span className="cg-amt">{r.kind === "ingreso" ? "" : "−"}{eur(r.amount)} €</span>
+                        <span className={`cg-tag ${state && state !== "skip" ? "ok" : ""}`} style={{ marginLeft: 8 }}>
+                          {state === "skip" ? "saltado" : state ? "anotado" : toca ? "pendiente" : prox ? shortMonth(prox) : "—"}
+                        </span>
+                      </button>
+                    );
+                  }}
+                />
               )}
             </div>
 
@@ -2771,9 +2902,6 @@ export default function App() {
               <div className="cg-toggle">
                 <button className={modoCoach ? "on" : ""} onClick={() => setModoCoach(true)}>Coach</button>
                 <button className={!modoCoach ? "on" : ""} onClick={() => setModoCoach(false)}>Gastos</button>
-              </div>
-              <div style={{ marginTop: 14 }}>
-                <button className="cg-ghost" onClick={compartirApp}>Compartir esta app</button>
               </div>
             </div>
 
@@ -2851,20 +2979,26 @@ export default function App() {
                 <h2 className="cg-title">Límites Categorías</h2>
                 <button className="cg-ghost" onClick={() => setSheet({ type: "cat", payload: null })}>+ Nueva</button>
               </div>
-              {[...categories].sort((a, b) => a.name.localeCompare(b.name, "es")).map((c) => (
-                <button key={c.id} className="cg-item" onClick={() => setSheet({ type: "cat", payload: c })}>
-                  <div className="cg-badge" style={{ background: c.color + "22" }}>{c.emoji}</div>
-                  <div style={{ minWidth: 0 }}>
-                    <div className="cg-name">{c.name}</div>
-                    <div className="cg-meta">
-                      {BUCKETS.find((b) => b.id === (c.bucket || "deseo"))?.label}
-                      {c.budget ? ` · límite ${eur(c.budget)} €` : ""}
+              <ExpandableList
+                items={[...categories].sort((a, b) => a.name.localeCompare(b.name, "es"))}
+                expanded={expCatLimites}
+                onToggle={() => setExpCatLimites((v) => !v)}
+                renderItem={(c) => (
+                  <button key={c.id} className="cg-item" onClick={() => setSheet({ type: "cat", payload: c })}>
+                    <div className="cg-badge" style={{ background: c.color + "22" }}>{c.emoji}</div>
+                    <div style={{ minWidth: 0 }}>
+                      <div className="cg-name">{c.name}</div>
+                      <div className="cg-meta">
+                        {BUCKETS.find((b) => b.id === (c.bucket || "deseo"))?.label}
+                        {c.budget ? ` · límite ${eur(c.budget)} €` : ""}
+                      </div>
                     </div>
-                  </div>
-                  <span className="cg-amt" style={{ color: "var(--muted)", fontSize: 12 }}>editar</span>
-                </button>
-              ))}
+                    <span className="cg-amt" style={{ color: "var(--muted)", fontSize: 12 }}>editar</span>
+                  </button>
+                )}
+              />
             </div>
+
 
             <div className="cg-card">
               <h2 className="cg-title">Detección automática</h2>
@@ -2874,6 +3008,22 @@ export default function App() {
               </p>
               <button className="cg-ghost danger" onClick={wipe}>Borrar todos los datos</button>
             </div>
+
+            <div className="cg-card">
+              <h2 className="cg-title">Feedback</h2>
+              <p className="cg-hint">
+                ¿Falta algo, algo no funciona bien, o se te ocurre una mejora? Escribe directamente al admin.
+              </p>
+              <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                <a className="cg-ghost" style={{ textAlign: "center", textDecoration: "none" }}
+                  href="mailto:rodrigoharmat@gmail.com?subject=Feedback%20Cosecha">Escribir al admin</a>
+                <button className="cg-ghost" onClick={compartirApp}>Compartir esta app</button>
+              </div>
+            </div>
+
+            <p style={{ textAlign: "center", fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)", margin: "4px 0 0" }}>
+              Cosecha v{APP_VERSION}
+            </p>
           </>
         )}
 
