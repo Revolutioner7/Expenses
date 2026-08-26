@@ -6,6 +6,10 @@ import React, { useState, useEffect, useMemo, useRef, useCallback } from "react"
    ──────────────────────────────────────────────────────────────── */
 
 const STORE_KEY = "cuaderno-gastos-v1";
+const ONBOARD_KEY = "cosecha-onboarding-v1"; // aparte de STORE_KEY: no es dato financiero, no se cifra
+// ⚠️ Sustituir por la URL real una vez desplegado el Worker (ver WORKER.md). Hasta entonces,
+// el envío de la señal anónima se salta solo, sin dar error.
+const WORKER_URL = "https://REEMPLAZA-ESTO.workers.dev";
 
 /* ── almacenamiento (con reserva en memoria si no está disponible) ── */
 let memoryStore = {};
@@ -149,7 +153,7 @@ const SWATCHES = [
 ];
 
 /* reparto 50/30/20: cada categoría es necesidad, deseo o ahorro */
-const APP_VERSION = "2.1.0";
+const APP_VERSION = "2.2.0";
 
 const BUCKETS = [
   { id: "necesidad", label: "Gasto", target: 50, color: "#1E4E45" },
@@ -522,6 +526,13 @@ const CSS = `
 .cg-coachicon{width:26px;height:26px;border-radius:50%;background:#D99A2B;color:#4A2F08;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:14px;animation:cg-pulse 1.8s ease-in-out infinite;}
 @keyframes cg-pulse{0%,100%{transform:scale(1);}50%{transform:scale(1.15);}}
 .cg-vermas{border:0;background:transparent;font-family:var(--body);font-size:12px;font-weight:600;color:var(--pine);cursor:pointer;padding:4px;}
+.cg-onboard{max-width:420px;margin:0 auto;padding:32px 20px;}
+.cg-onboard-head{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
+.cg-onboard-logo{width:64px;height:64px;border-radius:20px;background:var(--pine);display:flex;align-items:center;justify-content:center;font-size:30px;margin:0 auto 16px;}
+.cg-onboard-title{font-size:22px;font-weight:500;color:var(--ink);text-align:center;margin:0 0 4px;}
+.cg-onboard-tag{font-size:13px;color:var(--muted);text-align:center;margin:0 0 28px;}
+.cg-onboard-sub{font-size:13px;font-weight:500;color:var(--ink);margin-bottom:8px;}
+.cg-onboard-step{font-size:12.5px;color:var(--muted);margin:0 0 5px;line-height:1.5;}
 
 .cg-eye{position:absolute;top:14px;right:14px;width:32px;height:32px;border-radius:50%;border:0;
   background:rgba(242,245,241,.12);color:#F2F5F1;cursor:pointer;display:grid;place-items:center;padding:0;}
@@ -728,6 +739,28 @@ function CoachBox({ msg }) {
   );
 }
 
+/* ── tarjeta de aviso para quien ya usaba la app antes de esta actualización: no bloquea nada,
+   solo informa y ofrece dejar el email de forma opcional ── */
+function AvisoActualizacionCard({ onClose }) {
+  const [email, setEmail] = useState("");
+  return (
+    <div className="cg-card cg-pending">
+      <h2 className="cg-title">Novedad en esta actualización</h2>
+      <p className="cg-hint" style={{ marginBottom: 10 }}>
+        Ahora Cosecha manda una señal anónima para saber cuánta gente la usa — sin contraseñas ni
+        datos de tus gastos. Si quieres que pueda escribirte alguna vez (avisos puntuales, nada más),
+        deja tu email; es opcional.
+      </p>
+      <input className="cg-input" type="email" placeholder="tu@email.com (opcional)"
+        value={email} onChange={(e) => setEmail(e.target.value)} style={{ marginBottom: 10 }} />
+      <div style={{ display: "flex", gap: 8 }}>
+        <button className="cg-btn" style={{ flex: 1 }} onClick={() => onClose(email.trim())}>Guardar</button>
+        <button className="cg-ghost" onClick={() => onClose("")}>Ahora no</button>
+      </div>
+    </div>
+  );
+}
+
 /* ── hoja modal ── */
 function Sheet({ children, onClose, title }) {
   useEffect(() => {
@@ -779,6 +812,8 @@ function CategoryEditor({ category, onSave, onDelete, onClose, expenseCount }) {
     onClose();
   };
 
+  const parecidoAAhorro = isNew && /ahorr/.test(norm(name));
+
   return (
     <Sheet title={isNew ? "Nueva categoría" : "Editar categoría"} onClose={onClose}>
       <div className="cg-row">
@@ -794,6 +829,15 @@ function CategoryEditor({ category, onSave, onDelete, onClose, expenseCount }) {
             onKeyDown={(e) => e.key === "Enter" && save()} />
         </div>
       </div>
+
+      {parecidoAAhorro && (
+        <div className="cg-card" style={{ background: "#FBEFDA", margin: "10px 0 0" }}>
+          <p style={{ fontSize: 13, margin: 0, color: "#6B4816" }}>
+            Esto suena a un fondo de ahorro. Para que tenga seguimiento de verdad (importe, plazo y aviso de
+            si es alcanzable), créalo como una meta en la pestaña Metas en vez de una categoría suelta.
+          </p>
+        </div>
+      )}
 
       <div style={{ marginTop: 10 }}>
         <span className="cg-lab">
@@ -836,12 +880,17 @@ function CategoryEditor({ category, onSave, onDelete, onClose, expenseCount }) {
       <div style={{ marginTop: 12 }}>
         <span className="cg-lab">En el reparto 50/30/20 cuenta como</span>
         <div className="cg-toggle">
-          {BUCKETS.map((b) => (
+          {BUCKETS.filter((b) => b.id !== "ahorro" || category?.bucket === "ahorro").map((b) => (
             <button key={b.id} className={bucket === b.id ? "on" : ""} onClick={() => setBucket(b.id)}>
               {b.label}
             </button>
           ))}
         </div>
+        {category?.bucket !== "ahorro" && (
+          <p className="cg-hint">
+            Para una categoría de ahorro con seguimiento (importe, plazo), crea una meta en la pestaña Metas.
+          </p>
+        )}
       </div>
 
       <div style={{ marginTop: 12 }}>
@@ -876,18 +925,38 @@ function MetaEditor({ meta, aportado, ingresoMensualEstimado, necesidadFija, nec
   const [tipo, setTipo] = useState(meta?.tipo || "objetivo");
   const [name, setName] = useState(meta?.name || "");
   const [total, setTotal] = useState(meta?.total != null ? String(meta.total).replace(".", ",") : "");
-  const [plazo, setPlazo] = useState(meta?.plazoMeses != null ? String(meta.plazoMeses) : "");
 
   const totalNum = parseAmount(total);
-  const plazoNum = parseInt(plazo, 10);
   const restante = Math.max(0, (isNaN(totalNum) ? 0 : totalNum) - (aportado || 0));
-  const cuota = plazoNum > 0 ? restante / plazoNum : null;
+
+  const [cuotaStr, setCuotaStr] = useState(() => {
+    if (meta?.total != null && meta?.plazoMeses > 0) {
+      const restanteInicial = Math.max(0, meta.total - (aportado || 0));
+      return String(Math.round((restanteInicial / meta.plazoMeses) * 100) / 100).replace(".", ",");
+    }
+    return "";
+  });
+  const [plazoStr, setPlazoStr] = useState(meta?.plazoMeses != null ? String(meta.plazoMeses) : "");
+  const [lastEdited, setLastEdited] = useState(null); // 'cuota' | 'plazo' | null
+
+  const cuotaNum = parseAmount(cuotaStr);
+  const plazoNum = parseInt(plazoStr, 10);
+
+  useEffect(() => {
+    if (restante <= 0) return;
+    if (lastEdited === "cuota" && !isNaN(cuotaNum) && cuotaNum > 0) {
+      setPlazoStr(String(Math.max(1, Math.ceil(restante / cuotaNum))));
+    } else if (lastEdited === "plazo" && plazoNum > 0) {
+      setCuotaStr(String(Math.round((restante / plazoNum) * 100) / 100).replace(".", ","));
+    }
+  }, [restante, lastEdited, cuotaNum, plazoNum]);
+
   const margenMaximo = ingresoMensualEstimado - necesidadFija - necesidadVariable;
-  const factible = cuota != null ? cuota <= margenMaximo : null;
+  const factible = cuotaNum > 0 ? cuotaNum <= margenMaximo : null;
 
   const recortes = useMemo(() => {
     if (factible !== false) return [];
-    let falta = cuota - margenMaximo;
+    let falta = cuotaNum - margenMaximo;
     const out = [];
     for (const c of byCategoryDeseo) {
       if (falta <= 0) break;
@@ -895,7 +964,7 @@ function MetaEditor({ meta, aportado, ingresoMensualEstimado, necesidadFija, nec
       falta -= c.total;
     }
     return out;
-  }, [factible, cuota, margenMaximo, byCategoryDeseo]);
+  }, [factible, cuotaNum, margenMaximo, byCategoryDeseo]);
 
   const save = () => {
     const n = name.trim();
@@ -944,14 +1013,27 @@ function MetaEditor({ meta, aportado, ingresoMensualEstimado, necesidadFija, nec
         </p>
       )}
 
-      <label className="cg-lab" htmlFor="cg-metaplazo">¿En cuántos meses quieres conseguirlo?</label>
-      <input id="cg-metaplazo" className="cg-input num" inputMode="numeric" placeholder="Ej. 8"
-        value={plazo} onChange={(e) => setPlazo(e.target.value.replace(/\D/g, ""))} style={{ marginBottom: 10 }} />
+      <div className="cg-row" style={{ alignItems: "flex-end", gap: 10, marginBottom: 4 }}>
+        <div className="cg-field">
+          <label className="cg-lab" htmlFor="cg-metacuota">Mensualidad</label>
+          <input id="cg-metacuota" className="cg-input num" inputMode="decimal" placeholder="0,00"
+            value={cuotaStr}
+            onChange={(e) => { setCuotaStr(e.target.value); setLastEdited("cuota"); }} />
+        </div>
+        <i className="ti ti-arrow-left-right" style={{ fontSize: 16, color: "var(--muted)", marginBottom: 10 }} aria-hidden="true"></i>
+        <div className="cg-field">
+          <label className="cg-lab" htmlFor="cg-metaplazo">En cuántos meses</label>
+          <input id="cg-metaplazo" className="cg-input num" inputMode="numeric" placeholder="Ej. 8"
+            value={plazoStr}
+            onChange={(e) => { setPlazoStr(e.target.value.replace(/\D/g, "")); setLastEdited("plazo"); }} />
+        </div>
+      </div>
+      <p className="cg-hint" style={{ marginBottom: 10 }}>Escribe uno de los dos y el otro se calcula solo.</p>
 
-      {cuota != null && (
+      {cuotaNum > 0 && (
         <div className="cg-card" style={{ background: factible ? "#EAF0E8" : "#FBEFDA", margin: "4px 0 12px" }}>
           <p style={{ fontWeight: 500, margin: "0 0 4px" }}>
-            Cuota necesaria: {eur(cuota)} €/mes
+            Cuota necesaria: {eur(cuotaNum)} €/mes
           </p>
           {factible ? (
             <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>
@@ -960,7 +1042,7 @@ function MetaEditor({ meta, aportado, ingresoMensualEstimado, necesidadFija, nec
           ) : (
             <>
               <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 6px" }}>
-                No cabe del todo — faltarían unos {eur(cuota - margenMaximo)} € al mes. Podrías recortar de:
+                No cabe del todo — faltarían unos {eur(cuotaNum - margenMaximo)} € al mes. Podrías recortar de:
               </p>
               {recortes.length ? recortes.map((c) => (
                 <p key={c.id} style={{ fontSize: 13, margin: "2px 0" }}>{c.emoji} {c.name} — {eur(c.total)} €/mes</p>
@@ -1746,6 +1828,80 @@ function autoApplyAll(d) {
   return changed ? { ...d, months } : d;
 }
 
+/* ── onboarding: primer arranque, antes de que exista ningún dato ── */
+function isAppInstalled() {
+  return window.navigator.standalone === true ||
+    (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
+}
+
+function Onboarding({ startStep, onDone }) {
+  const [step, setStep] = useState(startStep); // 'install' | 'consent'
+  const [accepted, setAccepted] = useState(false);
+  const [email, setEmail] = useState("");
+
+  return (
+    <div className="cg-root">
+      <style>{CSS}</style>
+      {step === "install" ? (
+        <div className="cg-onboard">
+          <div className="cg-onboard-head">
+            <button className="cg-navbtn" onClick={() => setStep("consent")} aria-label="Atrás">←</button>
+            <h1 className="cg-title" style={{ margin: 0 }}>Cómo instalar</h1>
+          </div>
+
+          <div className="cg-card">
+            <div className="cg-onboard-sub">iPhone</div>
+            <p className="cg-onboard-step">1. Abre este enlace en Safari</p>
+            <p className="cg-onboard-step">2. Toca el icono de compartir</p>
+            <p className="cg-onboard-step">3. Elige «Añadir a pantalla de inicio»</p>
+            <p className="cg-onboard-step">4. Abre el icono nuevo desde tu pantalla</p>
+          </div>
+
+          <div className="cg-card">
+            <div className="cg-onboard-sub">Android</div>
+            <p className="cg-onboard-step">1. Abre este enlace en Chrome</p>
+            <p className="cg-onboard-step">2. Toca los tres puntos de arriba</p>
+            <p className="cg-onboard-step">3. Elige «Añadir a pantalla de inicio»</p>
+            <p className="cg-onboard-step">4. Abre el icono nuevo desde tu pantalla</p>
+          </div>
+
+          <button className="cg-btn" onClick={() => setStep("consent")}>Entendido, empezar</button>
+          <div style={{ textAlign: "center", marginTop: 12 }}>
+            <button className="cg-ghost" onClick={() => setStep("consent")}>Seguir sin instalar por ahora</button>
+          </div>
+        </div>
+      ) : (
+        <div className="cg-onboard">
+          <div className="cg-onboard-logo">🌱</div>
+          <p className="cg-onboard-title">Cosecha</p>
+          <p className="cg-onboard-tag">Tu dinero, con acompañamiento.</p>
+
+          <label className="cg-lab" htmlFor="cg-onboard-email">Email</label>
+          <input id="cg-onboard-email" className="cg-input" type="email" placeholder="tu@email.com"
+            value={email} onChange={(e) => setEmail(e.target.value)} style={{ marginBottom: 4 }} />
+          <p className="cg-hint" style={{ marginBottom: 16 }}>
+            Por favor, por motivos de seguridad y satisfacción, registra tu email. Nunca se comparte con terceros.
+          </p>
+
+          <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 20 }}>
+            <input id="cg-onboard-accept" type="checkbox" checked={accepted}
+              onChange={(e) => setAccepted(e.target.checked)} style={{ marginTop: 3 }} />
+            <label htmlFor="cg-onboard-accept" style={{ fontSize: 13, color: "var(--muted)", lineHeight: 1.5 }}>
+              He leído y acepto el <b>aviso antes de empezar</b>
+            </label>
+          </div>
+
+          <button className="cg-btn" disabled={!accepted} onClick={() => onDone(email.trim())}>Empezar</button>
+
+          <p style={{ textAlign: "center", fontSize: 11.5, color: "var(--muted)", marginTop: 14 }}>
+            🔒 Tus gastos nunca salen de este dispositivo
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ── pantalla de bloqueo ── */
 function LockScreen({ onUnlock, onBio, onWipe }) {
   const [pass, setPass] = useState("");
@@ -1999,11 +2155,100 @@ export default function App() {
   const [bioAvail, setBioAvail] = useState(false);
   useEffect(() => { bioDisponible().then(setBioAvail); }, []);
 
+  /* ── onboarding: primer arranque, antes de tocar los datos ──
+     Importante: si YA hay datos guardados (con o sin contraseña), quien actualiza desde una
+     versión anterior a esta nunca debe ver el onboarding, aunque ONBOARD_KEY no exista todavía
+     (es una clave nueva). Por eso esta comprobación vive en el mismo efecto que lee STORE_KEY,
+     no en uno aparte. */
+  const [onboard, setOnboard] = useState({ status: "loading" }); // 'loading' | 'install' | 'consent' | 'done'
+  const installIdRef = useRef(null);
+  const [avisoActualizacion, setAvisoActualizacion] = useState(false); // solo para quien ya tenía datos
+
+  const registrarEnWorker = (id, email) => {
+    if (WORKER_URL.includes("REEMPLAZA-ESTO")) return;
+    fetch(WORKER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id, email: email || undefined }),
+    }).catch(() => {});
+  };
+
+  const cerrarAvisoActualizacion = async (email) => {
+    setAvisoActualizacion(false);
+    try {
+      const raw = await store.get(ONBOARD_KEY);
+      const actual = raw ? JSON.parse(raw) : {};
+      await store.set(ONBOARD_KEY, JSON.stringify({ ...actual, avisoActualizacionVisto: true, email: email || actual.email || null }));
+    } catch (e) { /* no bloquea el uso de la app */ }
+    if (email) registrarEnWorker(installIdRef.current, email);
+  };
+
+  const finishOnboarding = async (email) => {
+    const instalado = isAppInstalled();
+    const installId = uid() + uid();
+    const payload = { done: true, installId, email: email || null, instaladaAlAceptar: instalado, avisoActualizacionVisto: true };
+    try { await store.set(ONBOARD_KEY, JSON.stringify(payload)); } catch (e) { /* no bloquea el uso de la app */ }
+    installIdRef.current = installId;
+    setOnboard({ status: "done" });
+    // registro inicial en el Worker (id + email si se dio) — una sola vez, aquí; los desbloqueos
+    // siguientes solo mandan el id, no hace falta repetir el email cada vez
+    registrarEnWorker(installId, email);
+  };
+
+  /* señal anónima: "sigo aquí", sin contraseña ni datos, cada vez que se desbloquea o se abre sin protección */
+  useEffect(() => {
+    if (onboard.status !== "done" || locked) return;
+    if (WORKER_URL.includes("REEMPLAZA-ESTO")) return; // Worker aún no desplegado: no hacer nada
+    const id = installIdRef.current;
+    if (!id) return;
+    fetch(WORKER_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ id }),
+    }).catch(() => {}); // sin conexión no debe romper nada
+  }, [onboard.status, locked]);
+
   useEffect(() => {
     (async () => {
       const raw = await store.get(STORE_KEY);
       let parsed = null;
       if (raw) { try { parsed = JSON.parse(raw); } catch (e) { parsed = null; } }
+
+      // ¿ya hay datos de alguna versión anterior? entonces el onboarding se da por hecho, siempre
+      const yaHabiaDatos = esSobre(parsed) || !!(parsed && parsed.categories);
+      if (yaHabiaDatos) {
+        setOnboard({ status: "done" });
+        // quien ya tenía datos nunca pasó por finishOnboarding: le generamos el id en silencio
+        // (sin pedir nada) y, si no ha visto el aviso de esta actualización, se lo enseñamos
+        // como una tarjeta en Mes, sin bloquear nada.
+        try {
+          const rawOnboard = await store.get(ONBOARD_KEY);
+          const parsedOnboard = rawOnboard ? JSON.parse(rawOnboard) : null;
+          if (parsedOnboard?.installId) {
+            installIdRef.current = parsedOnboard.installId;
+            if (!parsedOnboard.avisoActualizacionVisto) setAvisoActualizacion(true);
+          } else {
+            const installId = uid() + uid();
+            installIdRef.current = installId;
+            await store.set(ONBOARD_KEY, JSON.stringify({ done: true, installId, email: null, avisoActualizacionVisto: false }));
+            setAvisoActualizacion(true);
+          }
+        } catch (e) { /* si falla, simplemente no se muestra el aviso ni se cuenta esta vez */ }
+      } else {
+        try {
+          const rawOnboard = await store.get(ONBOARD_KEY);
+          const parsedOnboard = rawOnboard ? JSON.parse(rawOnboard) : null;
+          if (parsedOnboard?.done) {
+            installIdRef.current = parsedOnboard.installId || null;
+            setOnboard({ status: "done" });
+          } else {
+            setOnboard({ status: isAppInstalled() ? "consent" : "install" });
+          }
+        } catch (e) {
+          setOnboard({ status: isAppInstalled() ? "consent" : "install" });
+        }
+      }
+
       if (esSobre(parsed)) {
         envRef.current = parsed;
         setProtegido(true);
@@ -2528,6 +2773,20 @@ export default function App() {
   const coachMsg = useMemo(() => {
     if (!modoCoach || !isCurrentMonth) return null;
 
+    /* candidata 0: una meta conseguida o superada — no depende de tener mes anterior con historial,
+       es un hecho positivo por sí mismo. Si hay varias, se muestra la de mayor porcentaje. */
+    const metaLograda = metas
+      .map((m) => ({ m, pct: m.total > 0 ? ((metaProgreso[m.id] || 0) / m.total) * 100 : 0 }))
+      .filter((x) => x.pct >= 100)
+      .sort((a, b) => b.pct - a.pct)[0];
+    if (metaLograda) {
+      const { m, pct } = metaLograda;
+      const verbo = m.tipo === "deuda" ? "Has terminado de pagar" : "Has conseguido";
+      return pct > 105
+        ? `${verbo} «${m.name}» — llevas el ${Math.round(pct)}%`
+        : `${verbo} tu ${m.tipo === "deuda" ? "deuda" : "objetivo"} «${m.name}»`;
+    }
+
     /* candidata 1: proyección de cierre de este mes, mejor que el gasto real del anterior */
     if (suficienteHistorial && prevSpent > 0 && spent > 0) {
       const proyeccion = (spent / diaHoy) * daysInMonth;
@@ -2550,7 +2809,7 @@ export default function App() {
 
     /* ninguna candidata es cierta: ánimo neutro, sin inventar comparaciones */
     return "Llevas todo el mes anotado, eso ya suma.";
-  }, [modoCoach, isCurrentMonth, suficienteHistorial, prevSpent, spent, diaHoy, daysInMonth, prevMonthKey, prevToDate, left, income]);
+  }, [modoCoach, isCurrentMonth, metas, metaProgreso, suficienteHistorial, prevSpent, spent, diaHoy, daysInMonth, prevMonthKey, prevToDate, left, income]);
 
   const totalGastosSiempre = useMemo(
     () => Object.values(data?.months || {}).reduce((s, m) => s + (m.expenses || []).length, 0),
@@ -2617,6 +2876,10 @@ export default function App() {
       .slice(0, 50);
   }, [searchQ, data]);
 
+  if (onboard.status === "install" || onboard.status === "consent") {
+    return <Onboarding startStep={onboard.status} onDone={finishOnboarding} />;
+  }
+
   if (locked) {
     return (
       <LockScreen
@@ -2673,7 +2936,7 @@ export default function App() {
           <div className="cg-sub">
             {oculto
               ? "importes ocultos"
-              : `${eur(income)} recibido · ${eur(spent)} gastado${saved > 0 ? ` · ${eur(saved)} apartado` : ""}`}
+              : `${eur(income)} recibido · ${eur(spent)} gastado${saved > 0 ? ` · ${eur(saved)} ahorrado 🎉` : ""}`}
           </div>
         </div>
 
@@ -2690,6 +2953,8 @@ export default function App() {
 
         {tab === "mes" && (
           <>
+            {avisoActualizacion && <AvisoActualizacionCard onClose={cerrarAvisoActualizacion} />}
+
             {avisarCopia && (
               <div className="cg-card cg-pending">
                 <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between", gap: 8 }}>
