@@ -149,7 +149,7 @@ const SWATCHES = [
 ];
 
 /* reparto 50/30/20: cada categoría es necesidad, deseo o ahorro */
-const APP_VERSION = "2.0.0";
+const APP_VERSION = "2.1.0";
 
 const BUCKETS = [
   { id: "necesidad", label: "Gasto", target: 50, color: "#1E4E45" },
@@ -540,9 +540,9 @@ const CSS = `
 .cg-dot{width:7px;height:7px;border-radius:2px;flex:none;}
 
 /* pestañas */
-.cg-tabs{display:flex;gap:4px;margin:14px 0 12px;background:#D9E0D8;padding:3px;border-radius:11px;}
-.cg-tab{flex:1;border:0;background:transparent;padding:8px 4px;border-radius:9px;cursor:pointer;
-  font-family:var(--mono);font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);}
+.cg-tabs{display:flex;gap:3px;margin:14px 0 12px;background:#D9E0D8;padding:3px;border-radius:11px;}
+.cg-tab{flex:1;border:0;background:transparent;padding:8px 2px;border-radius:9px;cursor:pointer;
+  font-family:var(--mono);font-size:10px;letter-spacing:.03em;text-transform:uppercase;color:var(--muted);}
 .cg-tab.on{background:var(--card);color:var(--ink);box-shadow:0 1px 2px rgba(16,26,24,.08);}
 
 /* formulario */
@@ -864,6 +864,124 @@ function CategoryEditor({ category, onSave, onDelete, onClose, expenseCount }) {
               Tiene {expenseCount} {expenseCount === 1 ? "gasto" : "gastos"}. Al borrarla pasan a «Otros».
             </p>
           )}
+        </div>
+      )}
+    </Sheet>
+  );
+}
+
+/* ── editor de metas: objetivos de ahorro y deudas ── */
+function MetaEditor({ meta, aportado, ingresoMensualEstimado, necesidadFija, necesidadVariable, byCategoryDeseo, onSave, onDelete, onClose }) {
+  const isNew = !meta;
+  const [tipo, setTipo] = useState(meta?.tipo || "objetivo");
+  const [name, setName] = useState(meta?.name || "");
+  const [total, setTotal] = useState(meta?.total != null ? String(meta.total).replace(".", ",") : "");
+  const [plazo, setPlazo] = useState(meta?.plazoMeses != null ? String(meta.plazoMeses) : "");
+
+  const totalNum = parseAmount(total);
+  const plazoNum = parseInt(plazo, 10);
+  const restante = Math.max(0, (isNaN(totalNum) ? 0 : totalNum) - (aportado || 0));
+  const cuota = plazoNum > 0 ? restante / plazoNum : null;
+  const margenMaximo = ingresoMensualEstimado - necesidadFija - necesidadVariable;
+  const factible = cuota != null ? cuota <= margenMaximo : null;
+
+  const recortes = useMemo(() => {
+    if (factible !== false) return [];
+    let falta = cuota - margenMaximo;
+    const out = [];
+    for (const c of byCategoryDeseo) {
+      if (falta <= 0) break;
+      out.push(c);
+      falta -= c.total;
+    }
+    return out;
+  }, [factible, cuota, margenMaximo, byCategoryDeseo]);
+
+  const save = () => {
+    const n = name.trim();
+    if (!n || isNaN(totalNum) || totalNum <= 0) return;
+    const categoryId = meta?.categoryId || uid();
+    const categoriaNueva = meta ? null : {
+      id: categoryId,
+      name: n,
+      emoji: tipo === "objetivo" ? "🎯" : "🤝",
+      color: tipo === "objetivo" ? "#D99A2B" : "#1E4E45",
+      bucket: tipo === "objetivo" ? "ahorro" : "necesidad",
+      budget: null,
+    };
+    onSave({
+      id: meta?.id || uid(),
+      tipo, name: n, total: totalNum, categoryId,
+      plazoMeses: plazoNum > 0 ? plazoNum : null,
+      creadoEl: meta?.creadoEl || todayISO(),
+    }, categoriaNueva);
+    onClose();
+  };
+
+  return (
+    <Sheet title={isNew ? "Nueva meta" : "Editar meta"} onClose={onClose}>
+      <div style={{ marginBottom: 12 }}>
+        <span className="cg-lab">Tipo</span>
+        <div className="cg-toggle">
+          <button className={tipo === "objetivo" ? "on" : ""} onClick={() => setTipo("objetivo")} disabled={!isNew}>Objetivo de ahorro</button>
+          <button className={tipo === "deuda" ? "on" : ""} onClick={() => setTipo("deuda")} disabled={!isNew}>Deuda</button>
+        </div>
+        {!isNew && <p className="cg-hint">El tipo no se puede cambiar una vez creada, porque ya tiene categoría propia.</p>}
+      </div>
+
+      <label className="cg-lab" htmlFor="cg-metaname">Nombre</label>
+      <input id="cg-metaname" className="cg-input" value={name} autoFocus
+        placeholder={tipo === "objetivo" ? "Coche nuevo, viaje a Japón…" : "Préstamo de Ana, hipoteca…"}
+        onChange={(e) => setName(e.target.value)} style={{ marginBottom: 10 }} />
+
+      <label className="cg-lab" htmlFor="cg-metatotal">{tipo === "objetivo" ? "Cuánto quieres ahorrar en total" : "Cuánto debes en total"}</label>
+      <input id="cg-metatotal" className="cg-input num" inputMode="decimal" placeholder="0,00"
+        value={total} onChange={(e) => setTotal(e.target.value)} style={{ marginBottom: 10 }} />
+
+      {!isNew && (
+        <p className="cg-hint" style={{ marginBottom: 10 }}>
+          Llevas {eur(aportado)} € de {eur(totalNum || 0)} € ({tipo === "objetivo" ? "ahorrado" : "pagado"}).
+        </p>
+      )}
+
+      <label className="cg-lab" htmlFor="cg-metaplazo">¿En cuántos meses quieres conseguirlo?</label>
+      <input id="cg-metaplazo" className="cg-input num" inputMode="numeric" placeholder="Ej. 8"
+        value={plazo} onChange={(e) => setPlazo(e.target.value.replace(/\D/g, ""))} style={{ marginBottom: 10 }} />
+
+      {cuota != null && (
+        <div className="cg-card" style={{ background: factible ? "#EAF0E8" : "#FBEFDA", margin: "4px 0 12px" }}>
+          <p style={{ fontWeight: 500, margin: "0 0 4px" }}>
+            Cuota necesaria: {eur(cuota)} €/mes
+          </p>
+          {factible ? (
+            <p style={{ fontSize: 13, color: "var(--muted)", margin: 0 }}>
+              Cabe dentro de lo que ingresas, descontando tus necesidades actuales.
+            </p>
+          ) : (
+            <>
+              <p style={{ fontSize: 13, color: "var(--muted)", margin: "0 0 6px" }}>
+                No cabe del todo — faltarían unos {eur(cuota - margenMaximo)} € al mes. Podrías recortar de:
+              </p>
+              {recortes.length ? recortes.map((c) => (
+                <p key={c.id} style={{ fontSize: 13, margin: "2px 0" }}>{c.emoji} {c.name} — {eur(c.total)} €/mes</p>
+              )) : (
+                <p style={{ fontSize: 13, margin: 0 }}>No hay gasto "deseo" de sobra este mes para recortar.</p>
+              )}
+            </>
+          )}
+        </div>
+      )}
+
+      <button className="cg-btn" onClick={save} disabled={!name.trim() || isNaN(totalNum) || totalNum <= 0}>
+        {isNew ? "Crear meta" : "Guardar cambios"}
+      </button>
+
+      {!isNew && (
+        <div style={{ marginTop: 12, textAlign: "center" }}>
+          <button className="cg-ghost danger" onClick={() => { onDelete(meta.id); onClose(); }}>Borrar meta</button>
+          <p style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>
+            La categoría «{name}» y sus gastos ya anotados se quedan, solo deja de estar ligada a esta meta.
+          </p>
         </div>
       )}
     </Sheet>
@@ -1859,7 +1977,7 @@ function migrate(d) {
   // v7: y se anotan solos salvo que digas lo contrario
   const recurring = (out.recurring || []).map((r) => ({ ...r, every: r.every || 1, auto: r.auto !== false }));
 
-  return { version: 8, categories: conAhorro, months, learned: out.learned || {}, recurring };
+  return { version: 8, categories: conAhorro, months, learned: out.learned || {}, recurring, metas: out.metas || [] };
 }
 
 /* ── app ── */
@@ -2024,9 +2142,61 @@ export default function App() {
     return { ...d, categories: exists ? d.categories.map((c) => (c.id === cat.id ? cat : c)) : [...d.categories, cat] };
   });
 
+  /* ── metas: objetivos de ahorro y deudas ── */
+  const metas = data?.metas || [];
+  const saveMeta = (meta, categoriaNueva) => setData((d) => {
+    const exists = (d.metas || []).some((m) => m.id === meta.id);
+    const metas = exists ? (d.metas || []).map((m) => (m.id === meta.id ? meta : m)) : [...(d.metas || []), meta];
+    const categories = categoriaNueva ? [...d.categories, categoriaNueva] : d.categories;
+    return { ...d, metas, categories };
+  });
+  const deleteMeta = (id) => setData((d) => {
+    const metas = (d.metas || []).filter((m) => m.id !== id);
+    // la categoría dedicada se queda (así no se pierden los gastos ya anotados), solo deja de ser "de una meta"
+    return { ...d, metas };
+  });
+
+  /* progreso de cada meta: suma de todos los gastos, en todos los meses, en su categoría dedicada */
+  const metaProgreso = useMemo(() => {
+    const out = {};
+    for (const m of metas) {
+      let total = 0;
+      for (const mes of Object.values(data?.months || {})) {
+        for (const e of mes.expenses || []) if (e.categoryId === m.categoryId) total += e.amount;
+      }
+      out[m.id] = total;
+    }
+    return out;
+  }, [metas, data]);
+
   /* ── fijos ── */
   const recurring = data?.recurring || [];
   const pendingFixed = recurring.filter((r) => dueIn(r, monthKey) && !(month.applied || {})[r.id]);
+
+  /* para saber si una cuota mensual es viable: ingreso estimado, y necesidad (fija + variable histórica),
+     ambas excluyendo la propia categoría de la meta que se esté editando */
+  const mesesCerrados = monthsBack(shiftMonth(monthKey, -1), 3).filter((k) => (data?.months?.[k]?.expenses || []).length);
+  const ingresoMensualEstimado = useMemo(() => {
+    const fixIncome = recurring.filter((r) => r.kind === "ingreso").reduce((s, r) => s + r.amount, 0);
+    if (fixIncome > 0) return fixIncome;
+    const conIngresos = mesesCerrados.filter((k) => (data?.months?.[k]?.incomes || []).length);
+    if (!conIngresos.length) return income;
+    return conIngresos.reduce((s, k) => s + data.months[k].incomes.reduce((t, i) => t + i.amount, 0), 0) / conIngresos.length;
+  }, [recurring, data, mesesCerrados, income]);
+
+  const necesidadFijaMensual = (excluirCategoryId) => recurring
+    .filter((r) => r.kind === "gasto" && r.categoryId !== excluirCategoryId && catById[r.categoryId]?.bucket === "necesidad")
+    .reduce((s, r) => s + r.amount, 0);
+
+  const necesidadVariableHistorica = (excluirCategoryId) => {
+    if (!mesesCerrados.length) return 0;
+    const total = mesesCerrados.reduce((s, k) => {
+      const gastos = data.months[k].expenses.filter((e) =>
+        !e.fixed && e.categoryId !== excluirCategoryId && catById[e.categoryId]?.bucket === "necesidad");
+      return s + gastos.reduce((t, e) => t + e.amount, 0);
+    }, 0);
+    return total / mesesCerrados.length;
+  };
 
   const applyFixed = (ids) => setData((d) => {
     const cur = d.months[monthKey] || emptyMonth();
@@ -2412,6 +2582,7 @@ export default function App() {
   const [expByCategory, setExpByCategory] = useState(false);
   const [expFijos, setExpFijos] = useState(false);
   const [expCatLimites, setExpCatLimites] = useState(false);
+  const [expMetas, setExpMetas] = useState(false);
   const movCount = month.expenses.length + month.incomes.length;
   const { firstGrouped, restGrouped } = useMemo(() => {
     let restante = 3;
@@ -2509,7 +2680,7 @@ export default function App() {
         {!oculto && coachMsg && <CoachBox msg={coachMsg} />}
 
         <div className="cg-tabs" role="tablist">
-          {[["mes", "Mes"], ["resumen", "Resumen"], ["fijos", "Fijos"], ["ajustes", "Ajustes"]].map(([k, label]) => (
+          {[["mes", "Mes"], ["resumen", "Resumen"], ["fijos", "Fijos"], ["metas", "Metas"], ["ajustes", "Ajustes"]].map(([k, label]) => (
             <button key={k} role="tab" aria-selected={tab === k}
               className={`cg-tab ${tab === k ? "on" : ""}`} onClick={() => setTab(k)}>
               {label}
@@ -2892,6 +3063,56 @@ export default function App() {
           </>
         )}
 
+        {tab === "metas" && (
+          <>
+            <div className="cg-card">
+              <div style={{ display: "flex", alignItems: "baseline", justifyContent: "space-between" }}>
+                <h2 className="cg-title">Metas</h2>
+                <button className="cg-ghost" onClick={() => setSheet({ type: "meta", payload: null })}>+ Nueva</button>
+              </div>
+              {metas.length === 0 ? (
+                <p className="cg-empty">Sin metas todavía.<br />Un objetivo de ahorro (un viaje, un coche) o una deuda a pagar — lo que sea, con su propio hueco.</p>
+              ) : (
+                <ExpandableList
+                  items={metas}
+                  expanded={expMetas}
+                  onToggle={() => setExpMetas((v) => !v)}
+                  renderItem={(m) => {
+                    const cat = catById[m.categoryId];
+                    const aportado = metaProgreso[m.id] || 0;
+                    const pct = m.total > 0 ? Math.min(100, (aportado / m.total) * 100) : 0;
+                    const cuota = m.plazoMeses > 0 ? Math.max(0, m.total - aportado) / m.plazoMeses : null;
+                    return (
+                      <button key={m.id} className="cg-catrow" onClick={() => setSheet({ type: "meta", payload: m })}>
+                        <div className="cg-catline">
+                          <span>{cat?.emoji || (m.tipo === "objetivo" ? "🎯" : "🤝")}</span>
+                          <span style={{ fontWeight: 500 }}>{m.name}</span>
+                          <span className="cg-pct" style={{ fontFamily: "var(--mono)" }}>
+                            {pct.toFixed(0)}%
+                          </span>
+                        </div>
+                        <div className="cg-track">
+                          <div className="cg-fill" style={{ width: `${pct}%`, background: m.tipo === "objetivo" ? "#D99A2B" : "var(--pine)" }} />
+                        </div>
+                        <div className="cg-meta">
+                          {eur(aportado)} € de {eur(m.total)} € {m.tipo === "objetivo" ? "ahorrado" : "pagado"}
+                          {cuota != null ? ` · ${eur(cuota)} €/mes · ${m.plazoMeses} ${m.plazoMeses === 1 ? "mes" : "meses"}` : ""}
+                        </div>
+                      </button>
+                    );
+                  }}
+                />
+              )}
+            </div>
+
+            <p className="cg-hint" style={{ padding: "0 4px" }}>
+              Cada meta tiene su propia categoría: cualquier gasto que anotes ahí (a mano, o desde un Fijo que la
+              apunte) descuenta solo de su pendiente. Si tienes un Fijo relacionado (como una hipoteca), edítalo en
+              la pestaña Fijos y cámbiale la categoría a la de la meta nueva.
+            </p>
+          </>
+        )}
+
         {tab === "ajustes" && (
           <>
             <div className="cg-card">
@@ -3038,6 +3259,20 @@ export default function App() {
             : 0}
           onSave={saveCategory}
           onDelete={deleteCategory}
+          onClose={() => setSheet(null)}
+        />
+      )}
+
+      {sheet?.type === "meta" && (
+        <MetaEditor
+          meta={sheet.payload}
+          aportado={sheet.payload ? (metaProgreso[sheet.payload.id] || 0) : 0}
+          ingresoMensualEstimado={ingresoMensualEstimado}
+          necesidadFija={necesidadFijaMensual(sheet.payload?.categoryId)}
+          necesidadVariable={necesidadVariableHistorica(sheet.payload?.categoryId)}
+          byCategoryDeseo={byCategory.filter((c) => c.bucket === "deseo")}
+          onSave={saveMeta}
+          onDelete={deleteMeta}
           onClose={() => setSheet(null)}
         />
       )}
