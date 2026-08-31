@@ -1,0 +1,23 @@
+{
+  "name": "cosecha",
+  "version": "2.3.0",
+  "private": true,
+  "type": "module",
+  "description": "Control de gastos e ingresos mensuales, sin conexión y sin cuentas — Cosecha.",
+  "scripts": {
+    "build": "esbuild src/main.jsx --bundle --minify --format=iife --target=safari15 --outfile=bundle.js",
+    "build:dev": "esbuild src/main.jsx --bundle --format=iife --target=safari15 --outfile=bundle.js --sourcemap",
+    "watch": "npm run build:dev -- --watch",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "esbuild": "^0.27.7",
+    "jsdom": "^30.0.1",
+    "vitest": "^4.1.11"
+  }
+}

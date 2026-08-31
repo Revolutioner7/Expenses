@@ -1,9 +1,10 @@
 /* Cosecha — funciona sin conexión */
-const CACHE = 'cosecha-v3';
+const CACHE = 'cosecha-v8';
 const SHELL = [
   './',
   './index.html',
   './bundle.js',
+  './styles.css',
   './manifest.webmanifest',
   './icon-192.png',
   './icon-512.png',
