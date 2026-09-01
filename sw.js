@@ -1,5 +1,5 @@
 /* Expenses — funciona sin conexión */
-const CACHE = 'cosecha-v9';
+const CACHE = 'cosecha-v11';
 const SHELL = [
   './',
   './index.html',
