@@ -1,10 +1,10 @@
 /* Expenses — funciona sin conexión */
-const CACHE = 'cosecha-v16';
+const CACHE = 'cosecha-v20';
 const SHELL = [
   './',
   './index.html',
-  './bundle.js?v=16',
-  './styles.css?v=16',
+  './bundle.js?v=20',
+  './styles.css?v=20',
   './manifest.webmanifest',
   './icon-192.png',
   './icon-512.png',
