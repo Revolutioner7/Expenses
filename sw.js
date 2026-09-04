@@ -1,10 +1,10 @@
-/* Expenses — funciona sin conexión */
-const CACHE = 'cosecha-v22';
+/* Dineriko — funciona sin conexión */
+const CACHE = 'cosecha-v23';
 const SHELL = [
   './',
   './index.html',
-  './bundle.js?v=22',
-  './styles.css?v=22',
+  './bundle.js?v=23',
+  './styles.css?v=23',
   './manifest.webmanifest',
   './icon-192.png',
   './icon-512.png',
