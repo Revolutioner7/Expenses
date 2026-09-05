@@ -1,10 +1,10 @@
 /* Dineriko — funciona sin conexión */
-const CACHE = 'cosecha-v23';
+const CACHE = 'cosecha-v25';
 const SHELL = [
   './',
   './index.html',
-  './bundle.js?v=23',
-  './styles.css?v=23',
+  './bundle.js?v=25',
+  './styles.css?v=25',
   './manifest.webmanifest',
   './icon-192.png',
   './icon-512.png',
