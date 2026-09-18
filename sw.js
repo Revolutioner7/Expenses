@@ -1,15 +1,16 @@
 /* Dineriko — funciona sin conexión */
-const CACHE = 'cosecha-v36';
+const CACHE = 'dineriko-v2';
 const SHELL = [
   './',
   './index.html',
-  './bundle.js?v=36',
-  './styles.css?v=36',
+  './bundle.js?v=2',
+  './styles.css?v=2',
   './manifest.webmanifest',
   './icon-192.png',
   './icon-512.png',
   './icon-512-maskable.png',
   './apple-touch-icon.png',
+  './piggy-d.png',
   './font-bricolage.woff2',
   './font-karla.woff2',
   './font-mono-400.woff2',
