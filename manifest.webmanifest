@@ -1,6 +1,6 @@
 {
-  "name": "Cuaderno de gastos",
-  "short_name": "Gastos",
+  "name": "Dineriko",
+  "short_name": "Dineriko",
   "description": "Control de gastos e ingresos mensuales, sin conexión y sin cuentas.",
   "start_url": "./",
   "scope": "./",
