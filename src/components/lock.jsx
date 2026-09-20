@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { Sheet } from "./ui.jsx";
+import { APP_NAME } from "../constants.js";
 
 /* ── pantalla de bloqueo ── */
 export function LockScreen({ onUnlock, onBio, onWipe }) {
@@ -35,7 +36,7 @@ export function LockScreen({ onUnlock, onBio, onWipe }) {
     <div className="cg-root">
       <div className="cg-wrap">
         <div className="cg-hero" style={{ marginTop: "12vh" }}>
-          <div className="cg-eyebrow">Cosecha</div>
+          <div className="cg-eyebrow">{APP_NAME}</div>
           <div className="cg-brand" style={{ fontSize: 21, marginTop: 2 }}>Gastos del mes</div>
 
           {onBio && !conPass ? (

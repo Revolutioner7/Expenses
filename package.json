@@ -1,9 +1,9 @@
 {
-  "name": "cosecha",
+  "name": "dineriko",
   "version": "2.3.0",
   "private": true,
   "type": "module",
-  "description": "Control de gastos e ingresos mensuales, sin conexión y sin cuentas — Cosecha.",
+  "description": "Control de gastos e ingresos mensuales, sin conexión y sin cuentas — Dineriko.",
   "scripts": {
     "build": "esbuild src/main.jsx --bundle --minify --format=iife --target=safari15 --outfile=bundle.js",
     "build:dev": "esbuild src/main.jsx --bundle --format=iife --target=safari15 --outfile=bundle.js --sourcemap",

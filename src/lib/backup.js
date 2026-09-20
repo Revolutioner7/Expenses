@@ -1,4 +1,5 @@
 import { todayISO } from "./utils.js";
+import { APP_NAME, PLAY_STORE_URL } from "../constants.js";
 
 /* crea la copia de seguridad: intenta la hoja de compartir nativa primero (deja elegir
    carpeta, incluido Google Drive o iCloud Drive si están instalados); si no está disponible,
@@ -35,20 +36,25 @@ export async function crearCopia(data) {
    "compartido" | "cancelado" | "copiado" (al portapapeles) | "manual" (ni share ni portapapeles
    disponibles — quien llama debe mostrar la url para copiarla a mano) */
 export async function compartirApp() {
-  const url = window.location.origin + window.location.pathname;
+  const esAndroid = /Android/.test(window.navigator.userAgent || "");
+  const playListo = !PLAY_STORE_URL.includes("REEMPLAZA-ESTO");
+  const url = (esAndroid && playListo) ? PLAY_STORE_URL : (window.location.origin + window.location.pathname);
+  const nombre = APP_NAME || "esta app";
+  const texto = `¿Quieres tener tus gastos al día? Prueba ${nombre}: ${url}`;
   if (navigator.share) {
     try {
-      await navigator.share({ title: "Cosecha", text: "Prueba Cosecha, mi app para llevar los gastos:", url });
-      return { estado: "compartido", url };
+      // el enlace ya va dentro del texto: si además se pasa "url" aparte, iOS pega los dos y sale duplicado
+      await navigator.share({ title: nombre, text: texto });
+      return { estado: "compartido", url, texto };
     } catch (e) {
-      if (e && e.name === "AbortError") return { estado: "cancelado", url };
+      if (e && e.name === "AbortError") return { estado: "cancelado", url, texto };
     }
   }
   try {
-    await navigator.clipboard.writeText(url);
-    return { estado: "copiado", url };
+    await navigator.clipboard.writeText(texto);
+    return { estado: "copiado", url, texto };
   } catch (e) {
-    return { estado: "manual", url };
+    return { estado: "manual", url, texto };
   }
 }
 

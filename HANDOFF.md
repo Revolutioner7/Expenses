@@ -4,7 +4,7 @@ Documento de traspaso completo. Sirve para retomar el proyecto dentro de seis me
 dárselo a otra persona, o para arrancar una conversación nueva con un asistente sin perder
 contexto.
 
-**Última actualización:** 31 de agosto de 2026
+**Última actualización:** 20 de septiembre de 2026 (ver §18, lo más reciente)
 **Estado:** en producción, en uso por al menos 2 personas
 **Versión de la app:** 2.3.0 · **Versión de datos:** 8 · **Versión de caché:** `cosecha-v8`
 
@@ -460,6 +460,21 @@ los datos, campos a 16px mínimo, día de fijos limitado a 28, `window.storage` 
 
 - **Cambiar `rp.name` en la ceremonia de passkey es seguro** (solo cosmético); cambiar `rp.id`
   no lo es — eso sí invalidaría los passkeys.
+- **Toda cosa nueva que se configura o se muestra en la app tiene que poder editarse o
+  deshacerse — nunca quedar puesta sin salida.** Cuando el usuario pida mostrar algo nuevo
+  ("quiero que ahora aparezca X"), preguntar explícitamente cómo se editaría o se quitaría X
+  antes de construirlo, no dar por hecho que con mostrarlo ya basta. Pedido explícitamente como
+  principio permanente de esta conversación, no solo para el caso concreto que lo motivó.
+- **Toda funcionalidad nueva o cambio de diseño tiene que pensarse también para lo que ya
+  existe, no solo para lo que se crea a partir de ahora — si puede afectar retroactivamente a
+  datos ya guardados, hay que decidir explícitamente qué pasa con ellos, no dejarlo sin
+  resolver.** Nace del caso real de la categoría única "Gastos periódicos": el rediseño cambió
+  cómo se crean las mini-metas nuevas, pero las que ya existían (con su categoría dedicada de
+  antes) se quedaron huérfanas del cambio, sin que nadie se planteara qué debía pasar con ellas
+  hasta que el usuario lo encontró por su cuenta. Cualquier cambio de arquitectura de datos
+  (categorías, forma de guardar algo, campos que cambian de significado) necesita una pasada de
+  migración explícita para lo que ya está guardado, del mismo estilo que ya se hace en
+  `migrate()` — no basta con que el código nuevo funcione bien para datos nuevos.
 - **El aviso de "novedad" para quien ya tenía datos nunca debe depender de una clave que no
   existía antes.** Al añadir `ONBOARD_KEY`, hubo que comprobar explícitamente "¿ya había datos
   en `STORE_KEY`?" antes de decidir si mostrar onboarding — si no, cualquier actualización futura
@@ -470,6 +485,28 @@ los datos, campos a 16px mínimo, día de fijos limitado a 28, `window.storage` 
 - **`hist.length > 0` no significa "hay datos de gasto variable"** — un mes puede tener
   apuntes y ser todos fijos. Para disclaimers de "sin datos suficientes", filtrar por si esos
   meses aportaron algo del tipo concreto que se está prometiendo, no solo por si el mes existe.
+- **Principio general de la app, no solo para bancos: cualquier cosa que se pueda "dar de alta"
+  (categoría, banco, lo que sea) tiene que poder añadirse en dos sitios — en el momento, desde
+  donde sea que la estés eligiendo (sin salir de ahí), y también desde Ajustes, para gestionarla
+  con calma aparte.** Nunca solo uno de los dos. El buscador de bancos (`BancoPicker`) lo hace
+  bien con categorías desde hace tiempo (chip "+ Nueva" en el propio selector); haría falta
+  añadir la misma opción "+ Añadir «lo que se ha escrito»" dentro del buscador de bancos cuando
+  no hay ningún resultado que coincida — todavía no está construido, ver §12.
+- **Principio general, no solo para categorías: cualquier menú desplegable ("Ver más"/"Ver
+  menos") tiene que volver a su estado colapsado en cuanto termines de usarlo, nunca quedarse
+  expandido sin necesidad.** El disparador exacto depende del patrón:
+  - **Chips de elección inline** (categoría en el formulario rápido, en `ExpenseEditor`, en
+    `FixedEditor`): el propio clic sobre una opción tiene que colapsar la lista a la vez que la
+    selecciona — no son dos pasos separados.
+  - **`ExpandableList`** (Ajustes → Límites Categorías, la lista de reglas de Fijos, Metas):
+    aquí tocar un elemento abre un editor aparte, no selecciona en el sitio — el disparador
+    equivalente es *cerrar ese editor*, momento en el que la lista debe volver a colapsarse si
+    estaba expandida.
+  - **`BancoPicker`**: no necesita ningún arreglo — en cuanto se elige un banco, el propio
+    componente entero se sustituye por el resumen "banco elegido + cambiar", así que su "Ver
+    más" interno nunca llega a quedarse pegado.
+  - Cualquier menú desplegable nuevo que se construya a partir de ahora debe seguir este mismo
+    principio desde el primer día, no como algo que haya que recordar pedir aparte.
 
 ## 10. Decisiones tomadas y por qué
 
@@ -542,8 +579,54 @@ antes de comprobar, WebAuthn simulado con un `Map`). Añadidas:
   valor }` de verdad, nunca una única variable compartida.
 - **`import { act } from "react"`, no de `"react-dom/test-utils"`** — el segundo está en desuso
   en React 19 y da avisos (inofensivos, pero ruidosos) en cada test.
+- **Ningún test debe dar por sentado "hoy" sin fijarlo.** Varios tests sembraban datos en
+  "2026-08" asumiendo que ese mes seguiría siendo el actual — funcionaban mientras el reloj real
+  de la máquina seguía en agosto, y se rompieron solos, sin tocar nada, en cuanto ese reloj pasó
+  a septiembre (pasó de verdad, en mitad de esta conversación). Nada que ver con paralelismo ni
+  con ningún cambio de código — probado descartando esas hipótesis primero. Arreglo: `vi.setSystemTime(...)`
+  con una fecha fija en el `beforeEach` global, para que la batería entera deje de depender de
+  cuándo se ejecute de verdad. Los tests que necesiten otra fecha concreta (el ciclo de nómina)
+  la fijan aparte, dentro de su propio test.
 
 ## 12. Backlog, en orden de valor
+
+**Pendiente de un solo dato: el enlace real de la ficha en Google Play (18 de septiembre, código
+ya listo, solo falta rellenar la constante):**
+- `PLAY_STORE_URL`, en `constants.js`, sigue con el mismo relleno de siempre
+  (`REEMPLAZA-ESTO`) — en cuanto exista la ficha real, sustituir esa URL es lo único que hace
+  falta, sin tocar nada más.
+- **"Compartir esta app"** (Ajustes → Ayuda y app) ya está listo para esto: en Android, comparte
+  `PLAY_STORE_URL` en cuanto deje de ser el relleno; hasta entonces, cae solo al enlace normal de
+  la web, sin dar ningún error. En iPhone, siempre comparte la web (no hay equivalente de App
+  Store, sigue siendo una PWA ahí).
+- La pantalla **"Cómo instalar"** ya detecta iPhone vs Android y muestra solo las instrucciones
+  que tocan (antes mostraba las dos a la vez) — pero en Android sigue enseñando el "Añadir a
+  pantalla de inicio" manual de siempre, sin ofrecer todavía el enlace a Play. A diferencia de
+  "Compartir esta app", este todavía no está conectado a `PLAY_STORE_URL` — falta ese cableado
+  cuando se retome.
+
+**Visión a muy largo plazo, condicional ("si la app se desarrolla y se necesita"), sin
+construir nada:**
+- **Soporte multi-divisa** — un ajuste para elegir euros, dólares, o tener las dos a la vez.
+  Anotado el 18 de septiembre, sin diseñar el mecanismo (¿una cuenta por divisa? ¿conversión en
+  vivo? ¿solo cambia el símbolo, sin tocar los importes?) — retomar desde cero cuando llegue el
+  momento. El icono de la hucha-cerdito de "Gastos periódicos" (imagen PNG con fondo transparente,
+  no emoji de texto) se diseñó a propósito para no depender de esto: en vez de un símbolo de
+  moneda, lleva la forma del logo de Dineriko recortada como hueco transparente en el cuerpo —
+  se adapta sola al color de fondo de cualquier insignia, y no hará falta tocarla pase lo que
+  pase con las divisas.
+  imagen fija, hecha a mano para esta app en concreto.
+
+**Pendiente, para la próxima ronda de "constrúyelo" (anotado el 9 de septiembre, sin construir):**
+- Al aceptar la oferta de crear las mini-metas en bloque (el mensaje que sale al activar el
+  interruptor de Gastos periódicos en Ajustes → Dinero, si ya había fijos periódicos sin mini-meta),
+  redirigir directo a Metas con el desglose de "Gastos periódicos" ya desplegado — hoy se queda en
+  Ajustes tras aceptar. Sin confirmar todavía si también aplica al aviso que ven los usuarios
+  existentes antes de activar nada (`AvisoGastosPeriodicosCard`), o solo a este.
+- Renombrar la categoría "Gastos periódicos" → "Gastos prorrateados". No es solo un texto —
+  ya existe como categoría real creada en datos de usuarios (incluido este), así que hace falta
+  un paso de migración para las cuentas que ya la tengan con el nombre viejo, no solo cambiar
+  dónde se crea una nueva (mismo principio que la migración de categoría única, §9).
 
 **✅ 1-5, terminados y probados en la ronda del 31 de agosto** (22 comprobaciones nuevas, todas
 en verde, además de las que ya había):
@@ -566,24 +649,114 @@ en verde, además de las que ya había):
 "GitHub Actions" en el repositorio real, y confirmar que la rama principal se llama `main` antes
 de depender de él.
 
-**2. Panel de Admin.** Pendiente de que el Worker esté desplegado de verdad (paso 3) para poder
-probarlo contra algo real, no simulado.
+**2. Panel de Admin, con el flujo de despliegue en dos pasos que pidió el usuario.** Pendiente de
+que el Worker esté desplegado de verdad (paso 3) para poder probarlo contra algo real, no
+simulado. El flujo exacto, confirmado varias veces por el usuario a lo largo de la conversación
+(la última, el 18 de septiembre, como recordatorio explícito de que no se olvide):
+1. Se sube una actualización, pero **no llega a todos los usuarios todavía** — solo a su propio
+   usuario (admin), para poder probarla él mismo primero, con datos y uso reales.
+2. Si le vale, **desde dentro de la propia app** (no desde GitHub, no desde un sitio aparte),
+   pulsa un botón "Deploy" que hace que esa misma versión llegue ya al resto de usuarios.
+Esto es justo el "botón Deploy de verdad" que se diferenció en su momento de la alternativa
+sencilla (dos URLs, subir dos veces a mano) — necesita servidor con un token de GitHub guardado
+y una pantalla de administrador protegida, no es una función más dentro de la app en sí. Sigue
+sin diseñar el mecanismo técnico exacto (¿dos ramas de GitHub Pages con dominios distintos, con
+el admin viendo la de "preview"? ¿un flag en el propio Worker que decide qué build servir según
+quién lo pide?) — retomar el diseño desde cero cuando se llegue a este punto, con este flujo de
+dos pasos como el requisito que no puede faltar.
 
 **3. Desplegar el Worker.** Código listo (`worker.js`, `WORKER.md` con pasos desde el panel web
 de Cloudflare, sin terminal). Falta que el usuario lo despliegue y pase la URL real, para
 actualizar `WORKER_URL` en `constants.js` y el `connect-src` de la CSP.
 
 **4. Decisiones abiertas, sin resolver:**
-- **TypeScript**, ¿se adopta en este mismo movimiento del refactor, o se deja aparte?
+- **TypeScript**: decidido que no, por ahora — el motivo real (falta de `package.json`) ya está
+  resuelto por el propio refactor; no hay ningún bug reciente que TypeScript hubiera cazado, y
+  meter una migración mecánica justo detrás de terminar el refactor repetiría el mismo patrón que
+  ya costó dos reinicios de entorno perdidos en una sesión. Se reconsiderará si entra otra persona
+  a tocar el código, o si empiezan a aparecer bugs por pasar datos con la forma equivocada.
 - **Dirección de monetización** (interruptor local fácil de saltar, backend de licencias real,
   publicidad con SDK de terceros, o ninguna todavía) — cada camino pide algo distinto de la
   arquitectura, no es una casilla que se pueda dejar "preparada" en abstracto.
 - **Importar el extracto del banco** (diseño ya acordado en una versión anterior de este
   documento, sigue vigente, no se ha tocado).
 
+**5. Patrimonio (ahorro, acciones, bonos…) — aparcado, con la dirección ya decidida para cuando
+se retome.** Adelante, pero **solo entrada manual, sin conectar nada automático**. La decisión,
+con su razonamiento completo, para no repetir la conversación:
+
+> Solo si lo mete el usuario a mano, sin conectar nada automático. En cuanto la app empiece a
+> mostrar el valor de acciones o bonos, hay dos caminos. Uno es que el usuario mismo actualice el
+> número una vez al mes ("tengo 3.000 € en el fondo tal"), que no cambia nada de cómo está
+> construida la app — sigue sin salir nada del móvil, cero coste nuevo, cero riesgo. El otro
+> camino es que la app vaya a buscar el precio real de esas acciones a internet cada día — y eso
+> sí es un cambio de fondo: la primera vez que la app hable con un proveedor de datos bursátiles,
+> deja de ser "una app que nunca sale del dispositivo" y pasa a depender de un servicio externo,
+> con su coste y sus caídas. Empezar por lo primero, y dejar lo segundo para más adelante, solo si
+> de verdad hace falta.
+
+Un apartado "hacer crecer tu dinero" (bonos, acciones, como categoría para invertir) se descartó
+aparte, con un motivo distinto y más serio: en cuanto la app pasa de "esto es lo que tienes" a
+sugerir "esto es lo que deberías comprar", entra en terreno de asesoramiento financiero regulado
+(CNMV, en España) — no es una decisión técnica que se tome sobre la marcha.
+
+**6. Cerrar los huecos de los Términos y Condiciones y el Aviso de Privacidad.** Ambos documentos
+están redactados y revisados a fondo (ver conversación de finales de agosto), pero siguen con
+placeholders sin rellenar: `[NOMBRE DE LA APLICACIÓN]` (ya se puede poner "Dineriko", decidido),
+`[FECHA]`, `[EMAIL DE CONTACTO]`, `[DOMICILIO, SI PROCEDE]`, y el enlace cruzado entre ambos
+documentos una vez publicados. Tarea mecánica, no de contenido — nadie ha vuelto a tocarlo desde
+que se cerró el nombre.
+
+**7. Bancos y forma de pago — construido y probado desde hace tiempo, esta nota llevaba
+desactualizada varias rondas.** Todo lo que sigue **ya funciona**, no está pendiente:
+`DEFAULT_BANCOS` precargados, `BancoPicker` reutilizable (buscador + más usado arriba + ver más
++ "Añadir «lo escrito»" cuando no hay resultados), forma de pago en el editor completo y en el
+formulario rápido con valor por defecto, tarjeta "Forma de pago por defecto" en Ajustes, paso de
+onboarding. Decisión ya tomada, no pendiente: **insignias con inicial y color por banco, no
+logos reales** (los logos son marca registrada de cada entidad; si el usuario consigue el kit de
+marca oficial de un banco con permiso de uso, ahí sí se podrían incluir).
+
+Lo único genuinamente sin construir de este bloque:
+- **Disponible por cuenta (efectivo / cada banco), aparcado, sin diseño cerrado.** Distinto de
+  "Gasto por forma de pago" en Resumen (que ya existe): esto sería un balance real por cuenta, no
+  solo un desglose del gasto. Si se construye, nunca debe mostrarse como una cifra sola y
+  aparentemente completa — siempre acompañada de cuánto del historial total sigue sin marcar,
+  para que no se confunda con el saldo real de esa cuenta mientras la mayoría de lo anotado no lo
+  tenga etiquetado todavía. Sin ajuste de saldo por cuenta en una primera versión, a propósito —
+  se añadiría más adelante si el hueco de "sin especificar" resulta ser un problema real en la
+  práctica.
+
+**8. Idea nueva, sin decidir del todo: un apartado en Ajustes llamado algo como "¿No te cuadran
+las cuentas?"**, que reuniría en un solo sitio dos cosas que hoy están separadas:
+- El **Ajuste de saldo** que ya existe (corrección puntual, manual, del disponible).
+- Una función nueva para **subir todos los movimientos del banco y comparar contra lo ya
+  anotado** — para encontrar qué se ha cobrado de verdad en la cuenta pero todavía no está en la
+  app. Esto es, en esencia, el mismo "Importar extracto del banco" que ya estaba en el backlog
+  (dos diseños distintos, ninguno confirmado — ver más abajo), pero replanteado como parte de un
+  apartado de conciliación más amplio, no como una función aislada.
+
+No se ha decidido nada más allá de la idea en sí — ni el diseño de la comparación, ni si de
+verdad conviene fusionarlo con Ajuste de saldo o dejarlos separados. Antes de construir nada de
+esto, retomar la conversación desde cero con esta idea como punto de partida.
+
+- **Recordatorios, en Ajustes.** Sin diseñar, solo la idea de partida: un apartado nuevo con (al
+  menos) dos avisos configurables — "¿quieres que te recordemos cuando llega algún gasto?" y
+  "¿quieres que te avisemos si no has apuntado gastos en X días?". Antes de construir, pensar en
+  la parte técnica: en iOS, sin servidor, esto solo puede vivir como notificación LOCAL
+  programada desde el propio dispositivo (no como push real) — que es justo el tipo de aviso que
+  no rompe el "todo se queda en el dispositivo", a diferencia de las notificaciones push que se
+  hablaron para analítica/anuncios. Retomar también con la regla de oro nueva del §9: cada
+  recordatorio que se active tiene que poder editarse (cambiar el umbral de días) y desactivarse,
+  no solo encenderse.
+
 ---
 
 ## 13. Limitaciones conocidas
+
+- **Hay un `src/styles.css` huérfano, sin usar.** El de verdad es `styles.css` en la raíz del
+  proyecto (el que `index.html` carga con `<link>`). El de `src/` no lo referencia nada — se
+  comprobó a fondo el 18 de septiembre — así que si alguna vez hace falta tocar estilos, es en el
+  de la raíz. No se ha borrado por precaución, solo queda anotado para no confundirse.
 
 Todas las de antes (sin sincronización, no cuadra con el saldo del banco por diseño, el efectivo
 ensucia, riesgo de pérdida de datos si Safari borra el sitio, tipografía del sistema dentro del
@@ -593,6 +766,73 @@ asistente). Añadida:
   también.** Distinto del comportamiento de un marcador normal de Safari. Cualquier instrucción
   de "reinstala para ver el icono nuevo" tiene que ir siempre precedida de un aviso de copia de
   seguridad, no como buena práctica sino como paso obligatorio.
+
+**15. Visión a largo plazo, sin fecha ni decisión de construir — solo para que quede anotado:**
+
+- **Conectar la cuenta de Revolut (u otro banco) para registrar gastos automáticamente**, "futuro
+  lejano" según sus propias palabras. Aclarado ya el punto técnico para cuando se retome: esto no
+  es "la app habla con el banco directamente" — en la UE (PSD2) hace falta pasar por un proveedor
+  ya autorizado como intermediario (Tink, Salt Edge, GoCardless, TrueLayer…), con coste real y
+  continuo por cuenta conectada. Es el cambio más profundo de cuantos se han hablado hasta ahora:
+  rompe el "nunca sale nada del dispositivo" mucho más a fondo que la analítica agregada o las
+  notificaciones — aquí lo que viaja es el movimiento y saldo real de cada cuenta, no un dato
+  anónimo. Retomar esta conversación desde cero cuando llegue el momento, no asumir que es una
+  extensión sencilla de lo demás.
+- **Enlace de referido de Revolut (comisión por alta), sin acceso a datos reales de la cuenta**:
+  esto es harina de otro costal, mucho más sencillo — una tarjeta con un enlace, sin servidor ni
+  cambio de arquitectura. La parte de si hace falta darse de alta como autónomo o cumplir alguna
+  normativa de intermediación financiera es una pregunta para un abogado, no para esta conversación.
+- **Salto a app nativa (Capacitor) si el éxito lo justifica más adelante**: no haría falta rehacer
+  el código de la app en sí — TWA (Android, ya decidido) y Capacitor son solo "cáscaras" distintas
+  alrededor del mismo interior en React. El riesgo real y sin confirmar sigue siendo si el
+  desbloqueo por Face ID (WebAuthn PRF) sobrevive dentro de un WKWebView — habría que probarlo
+  antes de comprometerse, asumido el riesgo de que puede que no sea posible.
+- **Despliegue por etapas: que una versión nueva le llegue solo a él primero, y al resto de
+  usuarios solo si él la aprueba.** No hace falta nada complicado para esto — la vía que encaja
+  con su flujo real (arrastrar archivos a GitHub, sin terminal) es una segunda URL de pruebas
+  aparte de la real: sube los archivos ahí primero, los prueba él, y solo cuando esté conforme,
+  copia esos mismos archivos a la URL de producción. Dos repositorios (o dos ramas) en vez de uno,
+  no un sistema de banderas por usuario — más simple, y de paso resolvería de raíz el patrón de
+  fallos que ya se ha repetido varias veces en esta conversación (subir algo roto directamente a
+  producción, enterarse por él en vez de antes).
+- **Analítica agregada de uso — decidido en buena parte, sin construir todavía.** Quiere que sea
+  obligatoria desde el primer día (sin interruptor de activar/desactivar), y que permita seguir el
+  cambio de uso de un mismo dispositivo en el tiempo — por tanto, la base legal es **interés
+  legítimo** (art. 6.1.f RGPD), no consentimiento; confirmado con una consulta externa a un
+  "abogado" (otra sesión de Claude, no una fuente jurídica real — dejarlo claro si se retoma).
+  Requisitos que esto exige, no opcionales si se sigue este camino: (1) el identificador de
+  instalación y el email no pueden vivir juntos ni cruzarse nunca a nivel técnico; (2) tiene que
+  existir un derecho de oposición, aceptado que puede ser tan simple como "escribe a este email"
+  dentro de la Política de Privacidad, sin interruptor dentro de la app; (3) categorías que puedan
+  revelar salud/religión/orientación/etc. deben agruparse o suavizarse antes de mandarse, nunca
+  tal cual. Qué trackear, ya decidido tras comparar con estándar de sector (no solo la opinión de
+  Claude): sesiones (conteo y duración agregada), qué pantallas se visitan (evento con nombre, no
+  automático para cada una), qué acciones concretas se usan (añadir gasto, buscador, editar en
+  bloque…), categorías de gasto ya filtradas de las sensibles. Explícitamente descartado: posición
+  exacta de cada toque en pantalla (no aporta nada que los eventos con nombre no den ya, y es lo
+  que la analítica de producto en general está dejando de hacer en 2026, no una limitación de esta
+  app en concreto). Idea añadida para cuando se diseñe el detalle exacto de eventos: saber si a
+  algún usuario **solo** le aparece el mensaje neutro del motor de coach (nunca una candidata real)
+  — señal de que el modo Coach no le está aportando nada, útil para decidir si vale la pena
+  seguir invirtiendo en ese motor o simplificarlo.
+- **Anuncios basados en gasto — pieza aparte, con más incertidumbre legal, sin decisión de
+  construir.** Importante no confundir con "explotar a quien está en apuros": la idea, aclarada
+  explícitamente, es lo contrario — si alguien gasta mucho en una categoría (gimnasio,
+  supermercado…), ofrecerle una alternativa más barata, cobrando comisión solo si la persona
+  cambia y ahorra de verdad. Se descartó sin ambigüedad, y no se retomará bajo ninguna forma,
+  cualquier mecanismo que dirija anuncios a partir de "esta persona gasta más de lo que ingresa"
+  — eso sí sería señalar vulnerabilidad económica para venderla a un anunciante, indistinto de la
+  intención. A diferencia de la analítica, esto necesitaría **consentimiento explícito** (no
+  interés legítimo), con su propia casilla separada de la de los T&C (art. 7.2 RGPD — no puede
+  fusionarse con "acepto los términos"), y de verdad opcional (quien diga que no, sigue usando la
+  app igual). Categorías que puedan revelar salud/religión/orientación/etc. quedarían fuera de
+  esto también, por buena que sea la intención concreta de ayudar en esa categoría. Depende,
+  además, de una pieza de negocio que no es técnica ni legal: acuerdos reales con las alternativas
+  más baratas (comisión por cada persona que cambie) — sin eso no hay nada que recomendar. Su
+  estrategia declarada es construir la base de usuarios primero, y negociar esos acuerdos después,
+  con la audiencia ya conseguida como argumento — por tanto, esto va varios pasos por detrás de la
+  propia analítica en el tiempo, no en paralelo. Sin diseño técnico ni decisión final de seguir
+  adelante.
 
 ---
 
@@ -637,25 +877,74 @@ es una tarea técnica pendiente, es una decisión de negocio sin tomar todavía 
 
 ## 16. Estado de la conversación
 
-Refactor completo (módulos + `package.json` + Vitest + GitHub Actions + `index.html` enlazando
-`styles.css`), y encima, en la misma ronda del 31 de agosto: Ajuste de saldo, Fijos (categorías +
-buscador), vista por ciclo de nómina, y las mejoras de Metas (total antes de la lista, las dos
-variantes con la opción combinada, y el checklist con colapso tras revisita). 22 comprobaciones
-nuevas, todas en verde, sobre las que ya había. Versión **2.3.0**, caché **`cosecha-v8`**.
+**Actualizado a 20 de septiembre de 2026.** Versión **2.3.0**, caché **`dineriko-v8`**. 102/102
+tests en verde. Test suite pasó de 92 a 102 desde la última vez que se escribió esta sección
+(nuevo botón "Ver Aviso de Privacidad" en Ajustes → Datos y privacidad, con el texto completo
+dentro de un `Sheet`, sin dependencias nuevas).
 
-El entorno de trabajo se reinició dos veces durante esta ronda larga. La primera vez se perdió el
-refactor entero y hubo que rehacerlo; la segunda, con la lección ya aplicada (guardar en
-`/mnt/user-data/outputs` según se iba terminando, no solo al final — ver §17), no se perdió nada.
+**Google Play, en curso.** Cuenta de desarrollador **personal** (no organización — Rodrigo tiene
+una empresa registrada, Harforitech, pero inactiva y sin D-U-N-S, y Dineriko no encaja en ninguna
+categoría que obligue a cuenta de empresa: se marcó "Ninguna de las anteriores" en el cuestionario
+de tipos de app). Nombre de desarrollador elegido: "Rodrigo Harmat". Verificación de identidad ya
+enviada, pendiente de que Google la apruebe (sin plazo fijo, puede tardar horas o días). Falta
+crear el paquete Android (TWA) y subirlo una vez la cuenta esté aprobada — no empezado todavía.
+`PLAY_STORE_URL` en `constants.js` sigue con el relleno de siempre.
 
-El paquete final para publicar está completo en `/mnt/user-data/outputs/refactor/`: código fuente
-(`src/`), pruebas (`tests/`), y todos los archivos estáticos listos (`bundle.js` ya compilado,
-`sw.js` con la caché subida, iconos, manifest, 4 de las 5 tipografías). **Falta una sola pieza que
-no estaba disponible para reconstruir**: `font-mono-600.woff2` — no hace falta generarla ni
-subirla de nuevo, ya existe en el repositorio real desde antes; sencillamente no se toca al
-publicar el resto.
+**Aviso de Privacidad, a medias.** El texto ya existe y está dentro de la app (ver arriba), pero
+Google Play exige un enlace público, no le vale con que esté solo dentro de la app. Falta
+publicarlo también en una dirección propia (por ejemplo `dineriko.com/privacidad`) y enlazarlo
+desde ahí — no empezado. El texto en sí describe la app tal como está hoy (sin servidor, sin
+cuentas, todo cifrado en el dispositivo) y ya incluye una cláusula de que se actualizará si algún
+día hay sincronización server-side.
 
-Pendiente inmediato: activar GitHub Actions en los ajustes de Pages (§12, punto 1), y las
-decisiones abiertas de siempre (TypeScript, monetización) cuando el usuario quiera retomarlas.
+**Análisis RGPD para la futura analítica agregada, guardado, no aplicable todavía.** Rodrigo
+consultó a otra IA sobre la base legal para la señal de analítica agregada (categorías más usadas,
+modo Coach, funciones usadas) que se apuntó como pendiente en el Worker. Conclusión: interés
+legítimo (art. 6.1.f RGPD) es más defendible que consentimiento obligatorio, salvo que se consiga
+anonimización real (agregar en el propio dispositivo antes de mandar nada, sin identificador
+persistente). Hay dos borradores de cláusula ya redactados (versión interés legítimo / versión
+anonimización real), pegados en un chat de este proyecto — reutilizar cuando se construya el
+Worker de verdad, no antes.
+
+**Orden acordado para lo grande que queda, de menor a mayor riesgo:** (1) Google Play — en curso,
+como arriba; (2) desplegar el Worker de Cloudflare de verdad (no existe todavía, no hay
+`WORKER.md` en el repo) y con eso el panel de admin con el botón real de "Publicar" (dos pasos:
+probar en la cuenta de Rodrigo, luego publicar para todos) — no empezado, es la pieza que falta
+para tener una red de seguridad antes de tocar el servidor grande; (3) servidor con cuentas de
+usuario reales y sincronización — no empezado, decisión tomada el 18 de septiembre, diseño sin
+empezar.
+
+**Incidente serio de dominio, resuelto — lección técnica nueva y crítica para la próxima vez.**
+El 20 de septiembre se reconectó `dineriko.com` como dominio personalizado en GitHub Pages (la
+misma reconexión que quedó pendiente tras el susto del 18 de septiembre). Poco después, tanto
+Rodrigo como al menos otro usuario de Android abrieron su icono instalado de siempre (uno viejo,
+de antes de que existiera Dineriko, con logo de "Cosecha") y vieron la app completamente vacía,
+como si nunca hubieran anotado nada. **Causa real, confirmada:** GitHub Pages redirige
+automáticamente cualquier visita a la dirección antigua (`revolutioner7.github.io`) hacia el
+dominio personalizado en cuanto este queda conectado — esto no estaba documentado ni se sabía
+antes de este incidente. Como el almacenamiento del navegador es propio de cada dirección, un
+icono viejo que antes cargaba en `revolutioner7.github.io` pasa a cargar en `dineriko.com`, que
+nunca había tenido esos datos guardados: de ahí la apariencia de "todo borrado", sin que nada se
+hubiera borrado de verdad. Se resolvió quitando otra vez `dineriko.com` del campo "Custom domain"
+en GitHub Pages, con lo que el icono viejo de ambos volvió a cargar sus datos reales sin problema.
+
+**Consecuencia práctica, ya acordada: el orden del plan de migración se invierte.** Antes se había
+decidido conectar `dineriko.com` primero (sin quitar la dirección antigua) y avisar a la gente con
+calma después. Con esta lección, el orden correcto es al revés: **primero avisar a todos los
+usuarios (por WhatsApp) y pedirles que borren su icono viejo y añadan uno nuevo desde
+`dineriko.com`, y solo cuando la mayoría lo haya hecho, conectar el dominio de verdad.** Conectarlo
+antes de avisar expone a cualquiera con un icono antiguo al mismo susto, sin previo aviso, con el
+riesgo añadido de que alguien confundido toque "Borrar todos los datos" pensando que así arregla
+el problema (eso sí sería una pérdida real, sin vuelta atrás). **Estado ahora mismo:** `dineriko.com`
+está desconectado de GitHub Pages (retirado por segunda vez), a la espera de hacer el aviso antes
+de volver a conectarlo. Ver también §9 (regla de dominio/origen) y la nueva regla de
+"reconfirmar antes de preguntar" en las reglas de trabajo del proyecto.
+
+**Pendiente suelto, apuntado, no construido:** rediseñar los controles de orden de Movimientos
+(hoy tres botones sueltos: A-Z, más reciente, más antiguo) como un solo botón que despliega las
+opciones, más dos botones aparte para filtrar por categoría y por forma de pago. Se aplica igual
+a Movimientos, Fijos e Ingresos, por compartir el mismo patrón de lista. Regla general acordada de
+paso: cualquier menú desplegable de la app sigue el mismo criterio de diseño, se use donde se use.
 
 ## 17. Persistencia de entregables (lección de esta ronda)
 
@@ -667,3 +956,90 @@ intermedios importantes (no solo el resultado final) a ese sitio persistente **s
 terminando**, no solo al final — así un reinicio a mitad de camino cuesta, como mucho, rehacer un
 paso mecánico ya conocido, no perder el trabajo entero. Aplicado con éxito la segunda vez que el
 entorno se reinició en esta misma ronda: no se perdió nada.
+
+## 18. Ronda del 20 de septiembre de 2026 (conversación nueva, sustituye a la anterior como casa del proyecto)
+
+**Leer esto antes que el resto: es lo más reciente y corrige datos de la cabecera.** La app se llama
+Dineriko, la caché publicada es `dineriko-v9`, y la dirección pública ya es `https://dineriko.com`.
+
+### Publicado hoy (110 pruebas en verde)
+- **Mudanza a dineriko.com, hecha.** Un solo repositorio con dineriko.com como dominio personalizado
+  en GitHub Pages. La dirección antigua (`revolutioner7.github.io/Expenses`) redirige sola a la nueva
+  y, como el almacenamiento va por dirección, los datos antiguos NO viajan: cada usuario instala desde
+  dineriko.com y restaura su copia. Rodrigo lo probó entero en su iPhone (nombre, icono y restaurar,
+  todo bien) y ya avisó al resto por WhatsApp. Face ID hay que reactivarlo (va ligado a la dirección).
+  Quien abrió la app durante el rato de la mañana en que el dominio estuvo conectado ve la app vacía y
+  SIN preguntas de inicio (quedó guardado un cuaderno vacío en esa dirección): se arregla restaurando.
+- `manifest.webmanifest`: nombre "Dineriko" (antes "Cuaderno de gastos"/"Gastos"; de ahí salía el
+  nombre viejo al instalar). Los colores de fondo siguen siendo los antiguos (`#E4E9E2`), pendiente.
+- **Preguntas de inicio rediseñadas** (`components/onboarding.jsx`, estilos `.cg-onboard-*` en
+  `styles.css`): opciones grandes de 64px que avanzan al tocarlas, sin "Continuar" (salvo "con
+  tarjeta" en el paso 5, que necesita elegir banco); flecha de atrás de 44px en los pasos 3 a 6, que
+  enseña marcada la opción ya elegida; "Saltar por ahora" subrayado con el resto de la frase en texto
+  normal. Desde el paso 6, atrás vuelve al 4 si se contestó "No" a diferenciar pagos. Causa del aspecto
+  feo anterior: la clase `.cg-onboard-choice` no tenía ninguna regla CSS.
+- **Compartir esta app**: el enlace va una sola vez, dentro del texto. Ya no se pasa `url` aparte a
+  `navigator.share` (iOS pegaba los dos y salía duplicado).
+- Frase de la pantalla del email: "Los detalles de tus gastos nunca salen de este dispositivo".
+- `GrupoAjustes` (ui.jsx): aire entre cabecera y contenido con la prop `padTop` (14 por defecto, 4 en
+  Dinero porque sus filas ya traen relleno).
+- Se publicó también el texto de la Política de Privacidad dentro de la app, que venía sin publicar.
+
+### Decidido y aprobado, SIN construir (esperan un "hazlo" explícito)
+- **Ordenar y Filtrar** en las cuatro listas (Movimientos, Ingresos, Fijos de gastos, Fijos de
+  ingresos): dos píldoras con menú propio, idéntico en iPhone y Android (no el desplegable nativo).
+  "Ordenar": una opción, se cierra al elegir; en Fijos conserva sus cuatro opciones. "Filtrar": un
+  solo menú con categorías y formas de pago separadas por rótulo, selección múltiple, sigue abierto
+  mientras se marca y se cierra tocando fuera; primera fila "Ver todo, sin filtros"; con filtro activo
+  la píldora se pone azul con el número ("Filtrar · 2") y el contador pasa a "3 de 18 gastos". Varias
+  categorías suman entre sí; categoría y forma de pago se cruzan. Los filtros se borran al salir de la
+  pestaña, el orden se conserva. El bloque de forma de pago solo sale si está activada en Ajustes. En
+  Ingresos solo va Ordenar. Menú largo: altura máxima con deslizamiento interno. Referencia visual: la
+  píldora de ordenar de su app de contraseñas.
+- **Logo de "Gastos periódicos"**: calendario azul marino con la D y un círculo con flechas de
+  repetición. Archivo en `pendiente-de-integrar/gastos-periodicos-logo.png`. Al integrarlo: sustituye a
+  `piggy-d.png` en esa categoría (componente `CatMark`), se usa también en la tarjeta de Metas (hoy
+  recuadro gris vacío) y se pinta más grande que un emoji. **El nombre se queda en "Gastos
+  periódicos"**: el cambio a "prorrateados" del §12 queda descartado, sin migración.
+- **Hucha (`piggy-d.png`) para la categoría Ahorro** en vez del emoji del cerdito. Alcance sin
+  confirmar; propuesta: solo la categoría "Ahorro" por defecto y solo para quien conserve el cerdito
+  original, sin tocar el selector de emojis. Ojo: `piggy-d.png` tiene mucho margen transparente (el
+  dibujo ocupa medio lienzo), hay que recortarlo para que no se vea pequeño.
+- **Desplegables de Ajustes**: un apartado abierto sigue abierto mientras se esté dentro de Ajustes
+  (aunque se abra y cierre un editor) y se cierra al salir a otra pestaña. Hoy no se cierra: bug.
+
+### Ronda v9 (misma tarde del 20 de septiembre): construido y probado, 121 pruebas en verde
+Caché **`dineriko-v9`**. Construido lo que más arriba figura como "aprobado, sin construir", salvo los
+desplegables de Ajustes, que siguen pendientes:
+- **Ordenar y Filtrar**: componentes `MenuOrdenar` y `MenuFiltrar` en `components/ui.jsx`, estilos
+  `.cg-pill*` y `.cg-menu*`. El menú se ancla a la barra `.cg-pillbar` entera, no a su píldora, para que
+  el de Filtrar no se salga de la pantalla en móviles estrechos. Iconos en SVG en línea. En `App.jsx`:
+  `filtroGastos`, `filtroFijosGastos`, `pasaFiltro`, `gruposFiltro`, `recurringGastosVisibles` (la
+  lógica de mini-metas y totales sigue usando `recurringGastos` entero, sin filtrar). El menú solo
+  ofrece categorías y formas de pago que aparecen en la lista, más las ya marcadas.
+- **Imágenes propias de categoría**: `imagenDeCategoria(c)` y `CatMark` en `ui.jsx`. Gastos periódicos
+  usa `gastos-periodicos.png`; la categoría con id `ahorro` usa `hucha-d.png` SOLO mientras su emoji
+  sea el cerdito original (si el usuario lo cambia, se respeta; si vuelve a elegir el cerdito, vuelve
+  la hucha). Sin migración de datos: es una regla de pintado. Las imágenes se pintan un 35% más grandes
+  que un emoji. `piggy-d.png` ya no se usa (se deja en el repositorio, fuera de la caché).
+- La tarjeta de Gastos periódicos en Metas usa `CatMark` en vez del icono `ti` que no se veía.
+
+### Apuntes sin decidir
+- Unos 49 iconos `ti ti-*` no se ven en ninguna parte: la fuente de iconos Tabler nunca se carga (la
+  CSP además solo permite fuentes propias). Decidir: añadir el archivo de la fuente o sustituir por SVG.
+- Paso 4 del inicio: "Saltar por ahora" lleva al paso 5 (cómo pagas); lo lógico sería ir al 6.
+- Enlace "Ya tengo una copia de seguridad" en la primera pantalla del inicio, directo a restaurar.
+  Útil para la mudanza a Google Play.
+- Al aceptar crear mini-metas en bloque, ir directo a Metas con el desglose abierto (del 9 de sept.).
+- Google Play: la app (TWA) comparte almacenamiento con Chrome para dineriko.com, así que quien ya use
+  dineriko.com en Chrome debería ver sus datos al instalar desde Play. Sin probar en móvil real; no
+  vale si el navegador por defecto es otro.
+
+### Reglas de trabajo confirmadas hoy
+- No tocar código sin orden directa ("hazlo", "constrúyelo", "adelante"). Bugs, ideas y mejoras son
+  apuntes. En caso de duda, preguntar antes.
+- La carpeta `src/` del repositorio de GitHub estaba desactualizada respecto a lo publicado: **la
+  fuente de verdad es el zip del proyecto completo**, que debe guardarse en los archivos del Proyecto de
+  Claude y subirse también al repositorio tras cada ronda.
+- En el contenedor de trabajo no existe `rsync`; copiar con `cp`.
+

@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
-import { Sheet } from "./ui.jsx";
+import { Sheet, BancoPicker, FormaPagoToggle, CatMark, imagenDeCategoria } from "./ui.jsx";
 import { uid, eur, todayISO, nowHM, parseAmount, detectCategory, monthLabel, sortKey, stampLabel } from "../lib/utils.js";
 
 /* ── formulario de alta ── */
-export function AddExpense({ categories, learned, onAdd, onNewCategory, justCreated }) {
+export function AddExpense({ categories, learned, onAdd, onNewCategory, justCreated, bancos, masUsadoBancoId, formaPagoDefecto, formaPagoEsExplicita, onAddBanco, prefillNonce, prefillCategoryId, prefillName, formaPagoActivada }) {
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
   const [categoryId, setCategoryId] = useState(null);
@@ -11,6 +11,10 @@ export function AddExpense({ categories, learned, onAdd, onNewCategory, justCrea
   const [date, setDate] = useState(todayISO());
   const [showDate, setShowDate] = useState(false);
   const [catExpanded, setCatExpanded] = useState(false);
+  const [formaPago, setFormaPago] = useState(formaPagoDefecto?.formaPago || null);
+  const [bancoId, setBancoId] = useState(formaPagoDefecto?.bancoId || null);
+  const [mostrarPicker, setMostrarPicker] = useState(false);
+  const [formaPagoExpandida, setFormaPagoExpandida] = useState(false);
   const nameRef = useRef(null);
 
   const guess = useMemo(
@@ -20,20 +24,35 @@ export function AddExpense({ categories, learned, onAdd, onNewCategory, justCrea
   useEffect(() => {
     if (justCreated) { setCategoryId(justCreated); setTouched(true); }
   }, [justCreated]);
+
+  useEffect(() => {
+    if (!prefillNonce) return;
+    setCategoryId(prefillCategoryId); setTouched(true); setName(prefillName || "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prefillNonce]);
   const selected = touched ? categoryId : guess || categoryId;
-  const topCats = categories.slice(0, 4);
+  const topCats = useMemo(() => {
+    const base = categories.slice(0, 4);
+    if (selected && !base.some((c) => c.id === selected)) {
+      const elegida = categories.find((c) => c.id === selected);
+      if (elegida) return [elegida, ...base.slice(0, 3)];
+    }
+    return base;
+  }, [categories, selected]);
   useEffect(() => {
     if (selected && !topCats.some((c) => c.id === selected)) setCatExpanded(true);
   }, [selected]); // eslint-disable-line react-hooks/exhaustive-deps
   const visibleCats = catExpanded ? categories : topCats;
   const value = parseAmount(amount);
   const valid = name.trim() && !isNaN(value) && value > 0 && selected;
+  const bancoElegido = bancos?.find((b) => b.id === bancoId) || null;
 
   const submit = () => {
     if (!valid) return;
-    onAdd({ id: uid(), name: name.trim(), amount: value, categoryId: selected, date, time: nowHM() });
+    onAdd({ id: uid(), name: name.trim(), amount: value, categoryId: selected, date, time: nowHM(), formaPago, bancoId: (formaPago === "banco" || formaPago === "domiciliado") ? bancoId : null });
     setName(""); setAmount(""); setCategoryId(null); setTouched(false);
     setDate(todayISO()); setShowDate(false); setCatExpanded(false);
+    setFormaPago(formaPagoDefecto?.formaPago || null); setBancoId(formaPagoDefecto?.bancoId || null); setMostrarPicker(false); setFormaPagoExpandida(false);
     nameRef.current?.focus();
   };
 
@@ -78,9 +97,15 @@ export function AddExpense({ categories, learned, onAdd, onNewCategory, justCrea
         <div className="cg-chips">
           {visibleCats.map((c) => (
             <button key={c.id} className={`cg-chip ${selected === c.id ? "on" : ""}`}
-              style={selected === c.id ? { background: c.color } : undefined}
-              onClick={() => { setCategoryId(c.id); setTouched(true); }}>
-              <span>{c.emoji}</span>{c.name}
+              style={{
+                ...(selected === c.id ? { background: c.color } : undefined),
+                ...(c.id === "gastos-periodicos-compartida" ? { padding: "10px 16px", fontSize: 14.5, fontWeight: 700 } : undefined),
+              }}
+              onClick={() => {
+                setCategoryId(c.id); setTouched(true); setCatExpanded(false);
+                if (c.id === "gastos-periodicos-compartida" && !name.trim()) setName("Gastos periódicos");
+              }}>
+              <span><CatMark c={c} size={16} /></span>{c.name}
             </button>
           ))}
           <button className="cg-chip add" onClick={onNewCategory}>+ Nueva</button>
@@ -94,25 +119,71 @@ export function AddExpense({ categories, learned, onAdd, onNewCategory, justCrea
         )}
       </div>
 
+      {formaPagoActivada !== false && (
+      <div style={{ marginTop: 12 }}>
+        <span className="cg-lab">Forma de pago</span>
+        {formaPagoEsExplicita && !formaPagoExpandida ? (
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: 10, background: "#E6F1FB", marginTop: 6 }}>
+            <span style={{ fontSize: 14 }}>
+              {formaPago === "efectivo" ? "Efectivo"
+                : formaPago === "bizum" ? "Bizum/Transferencia"
+                : formaPago === "domiciliado" ? `${bancoElegido?.name || "—"} · domiciliado`
+                : bancoElegido?.name || "—"}
+            </span>
+            <button className="cg-vermas" onClick={() => setFormaPagoExpandida(true)}>Ver más</button>
+          </div>
+        ) : (
+          <>
+            <div style={{ marginTop: 6 }}>
+              <FormaPagoToggle formaPago={formaPago}
+                onEfectivo={() => { setFormaPago("efectivo"); setBancoId(null); setMostrarPicker(false); }}
+                onBizum={() => { setFormaPago("bizum"); setBancoId(null); setMostrarPicker(false); }}
+                onTarjeta={() => setFormaPago("banco")}
+                onDomiciliado={() => setFormaPago("domiciliado")} />
+            </div>
+            {(formaPago === "banco" || formaPago === "domiciliado") && (
+              mostrarPicker ? (
+                <div style={{ marginTop: 8 }}>
+                  <BancoPicker bancos={bancos || []} masUsadoId={masUsadoBancoId} selectedId={bancoId}
+                    onSelect={(id) => { setBancoId(id); setMostrarPicker(false); }} onAddNuevo={onAddBanco} />
+                </div>
+              ) : (
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "10px 12px", borderRadius: 10, background: "#E6F1FB", marginTop: 8 }}>
+                  <span style={{ fontSize: 14 }}>{bancoElegido ? bancoElegido.name : "Elige tu banco…"}</span>
+                  <button className="cg-vermas" onClick={() => setMostrarPicker(true)}>cambiar</button>
+                </div>
+              )
+            )}
+          </>
+        )}
+      </div>
+      )}
+
       <button className="cg-btn" onClick={submit} disabled={!valid}>Añadir gasto</button>
     </div>
   );
 }
 
 /* ── ingresos del mes ── */
-export function IncomeCard({ incomes, onAdd, monthKey }) {
+export function IncomeCard({ incomes, onAdd, monthKey, bancos, masUsadoBancoId, onAddBanco, formaPagoActivada }) {
   const [label, setLabel] = useState("");
   const [amount, setAmount] = useState("");
+  const hoy = todayISO();
+  const fechaPorDefecto = hoy.slice(0, 7) === monthKey ? hoy : `${monthKey}-01`;
+  const [date, setDate] = useState(fechaPorDefecto);
+  const [showDate, setShowDate] = useState(false);
+  const [formaPago, setFormaPago] = useState(null);
+  const [bancoId, setBancoId] = useState(null);
   const total = incomes.reduce((s, i) => s + i.amount, 0);
   const value = parseAmount(amount);
   const valid = !isNaN(value) && value > 0;
-  const hoy = todayISO();
-  const fecha = hoy.slice(0, 7) === monthKey ? hoy : `${monthKey}-01`;
 
   const submit = () => {
     if (!valid) return;
-    onAdd({ id: uid(), label: label.trim() || "Ingreso", amount: value, date: fecha });
+    onAdd({ id: uid(), label: label.trim() || "Ingreso", amount: value, date, formaPago, bancoId: formaPago === "banco" ? bancoId : null });
     setLabel(""); setAmount("");
+    setDate(fechaPorDefecto); setShowDate(false);
+    setFormaPago(null); setBancoId(null);
   };
 
   return (
@@ -142,7 +213,36 @@ export function IncomeCard({ incomes, onAdd, monthKey }) {
             onKeyDown={(e) => e.key === "Enter" && submit()} />
         </div>
       </div>
-      <button className="cg-btn" onClick={submit} disabled={!valid}>Añadir ingreso</button>
+
+      {showDate ? (
+        <div style={{ marginTop: 12 }}>
+          <label className="cg-lab" htmlFor="cg-idate">Fecha</label>
+          <input id="cg-idate" type="date" className="cg-input" value={date} onChange={(e) => setDate(e.target.value)} />
+        </div>
+      ) : (
+        <button className="cg-ghost" style={{ marginTop: 12 }} onClick={() => setShowDate(true)}>
+          Hoy · cambiar fecha
+        </button>
+      )}
+
+      {formaPagoActivada !== false && (
+      <div style={{ marginTop: 12 }}>
+        <span className="cg-lab">¿Dónde se recibió? (opcional)</span>
+        <div className="cg-toggle" style={{ marginTop: 6 }}>
+          <button className={formaPago === "efectivo" ? "on" : ""}
+            onClick={() => { setFormaPago(formaPago === "efectivo" ? null : "efectivo"); setBancoId(null); }}>Efectivo</button>
+          <button className={formaPago === "banco" ? "on" : ""}
+            onClick={() => setFormaPago(formaPago === "banco" ? null : "banco")}>Cuenta bancaria</button>
+        </div>
+        {formaPago === "banco" && (
+          <div style={{ marginTop: 8 }}>
+            <BancoPicker bancos={bancos || []} masUsadoId={masUsadoBancoId} selectedId={bancoId} onSelect={setBancoId} onAddNuevo={onAddBanco} />
+          </div>
+        )}
+      </div>
+      )}
+
+      <button className="cg-btn" style={{ marginTop: 12 }} onClick={submit} disabled={!valid}>Añadir ingreso</button>
     </div>
   );
 }
@@ -217,7 +317,7 @@ export function CategoryDetail({ category, monthKey, months, onClose, onPickExpe
   const total = all.reduce((s, e) => s + e.amount, 0);
 
   return (
-    <Sheet title={`${category.emoji} ${category.name}`} onClose={onClose}>
+    <Sheet title={imagenDeCategoria(category) ? category.name : `${category.emoji} ${category.name}`} onClose={onClose}>
       <div className="cg-toggle">
         <button className={scope === "mes" ? "on" : ""} onClick={() => setScope("mes")}>
           {monthLabel(monthKey)}
@@ -246,7 +346,7 @@ export function CategoryDetail({ category, monthKey, months, onClose, onPickExpe
             )}
             {list.map((e) => (
               <button key={e.id} className="cg-item" onClick={() => onPickExpense(e)}>
-                <div className="cg-badge" style={{ background: category.color + "22" }}>{category.emoji}</div>
+                <div className="cg-badge" style={{ background: category.color + "22" }}><CatMark c={category} size={18} /></div>
                 <div style={{ minWidth: 0 }}>
                   <div className="cg-name">{e.name}</div>
                   <div className="cg-meta">{stampLabel(e)}</div>

@@ -1,4 +1,5 @@
 import React, { useMemo } from "react";
+import { CatMark } from "./ui.jsx";
 import { BUCKETS } from "../constants.js";
 import { eur, monthLabel, shiftMonth, shortMonth, monthsBack, dueIn, freqLabel } from "../lib/utils.js";
 
@@ -71,7 +72,7 @@ export function MonthCompare({ monthKey, months, categories, onJump }) {
               <span className="cg-lab">Lo que más se mueve</span>
               {movers.map((c) => (
                 <div key={c.id} className="cg-mover">
-                  <span>{c.emoji}</span>
+                  <span><CatMark c={c} size={15} /></span>
                   <span style={{ fontWeight: 500 }}>{c.name}</span>
                   <span className="cg-movdelta" style={{ color: c.delta > 0 ? "var(--red)" : "var(--pine)" }}>
                     {c.delta > 0 ? "▲" : "▼"} {eur(Math.abs(c.delta))} €

@@ -5,6 +5,8 @@
 
    { enc:2, kdf, iter, salt, wrapped:{ pass:{iv,ct}, prf:{iv,ct,credId} }, iv, ct }
    ─────────────────────────────────────────────────────────────────────────── */
+import { APP_NAME } from "../constants.js";
+
 export const ITER = 600000;
 export const PRF_SALT_TXT = "cuaderno-gastos-prf-v1";
 const te = new TextEncoder();
@@ -79,7 +81,7 @@ export async function prfObtener(credId) {
 export async function prfCrear() {
   const cred = await navigator.credentials.create({ publicKey: {
     challenge: crypto.getRandomValues(new Uint8Array(32)),
-    rp: { name: "Cosecha" },   // rp.id se toma del dominio actual (cambiar solo name es seguro, no invalida passkeys)
+    rp: { name: APP_NAME },   // rp.id se toma del dominio actual (cambiar solo name es seguro, no invalida passkeys)
     user: { id: crypto.getRandomValues(new Uint8Array(16)), name: "gastos", displayName: "Gastos" },
     pubKeyCredParams: [{ type: "public-key", alg: -7 }, { type: "public-key", alg: -257 }],
     authenticatorSelection: { authenticatorAttachment: "platform", residentKey: "required", userVerification: "required" },

@@ -2,10 +2,17 @@
    detección automática, iconos sugeridos ── */
 
 export const STORE_KEY = "cuaderno-gastos-v1";
-export const ONBOARD_KEY = "cosecha-onboarding-v1"; // aparte de STORE_KEY: no es dato financiero, no se cifra
+export const ONBOARD_KEY = "app-onboarding-v1"; // aparte de STORE_KEY: no es dato financiero, no se cifra
 // ⚠️ Sustituir por la URL real una vez desplegado el Worker (ver WORKER.md). Hasta entonces,
 // el envío de la señal anónima se salta solo, sin dar error.
 export const WORKER_URL = "https://REEMPLAZA-ESTO.workers.dev";
+// ⚠️ Sustituir por el enlace real de la ficha en Google Play una vez publicada la app.
+// Hasta entonces, compartir en Android sigue usando el enlace normal de la web, sin dar error.
+export const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=REEMPLAZA-ESTO";
+// El nombre visible de la app, en un único sitio — cambiarlo aquí basta para todo el JS.
+// index.html, manifest.webmanifest y sw.js son archivos estáticos aparte y no leen esta
+// constante: hay que actualizarlos a mano si el nombre cambia (ver HANDOFF.md).
+export const APP_NAME = "Dineriko";
 
 export const SWATCHES = [
   "#1E4E45", "#2C6B5E", "#6F9C6B", "#9DB05A",
@@ -16,7 +23,7 @@ export const SWATCHES = [
 ];
 
 /* reparto 50/30/20: cada categoría es necesidad, deseo o ahorro */
-export const APP_VERSION = "2.2.1";
+export const APP_VERSION = "2.3.0";
 
 export const BUCKETS = [
   { id: "necesidad", label: "Gasto", target: 50, color: "#1E4E45" },
@@ -191,3 +198,11 @@ export const FREQS = [
   { every: 6, label: "Semestral", short: "semestral" },
   { every: 12, label: "Anual", short: "anual" },
 ];
+
+// bancos españoles más habituales, ya puestos de antemano — el usuario no tiene que darlos
+// de alta uno a uno. Orden alfabético; "más usado" se calcula aparte, por uso real.
+export const DEFAULT_BANCOS = [
+  "Abanca", "Banca March", "Bankinter", "Banco Sabadell", "Banco Santander", "BBVA",
+  "CaixaBank", "EVO Banco", "Ibercaja", "ING", "Kutxabank", "Openbank", "Revolut",
+  "Triodos Bank", "Unicaja Banco",
+].map((name) => ({ id: name.toLowerCase().replace(/\s+/g, "-"), name }));

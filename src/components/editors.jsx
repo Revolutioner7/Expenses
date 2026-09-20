@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { Sheet } from "./ui.jsx";
+import { Sheet, BancoPicker, FormaPagoToggle, CatMark } from "./ui.jsx";
 import { SWATCHES, BUCKETS, EMOJI_ALL, FREQS } from "../constants.js";
 import { suggestEmojis, norm, uid, parseAmount, eur, todayISO, monthLabel, shiftMonth } from "../lib/utils.js";
 
@@ -46,7 +46,7 @@ export function CategoryEditor({ category, onSave, onDelete, onClose, expenseCou
         </div>
         <div className="cg-field">
           <label className="cg-lab" htmlFor="cg-catname">Nombre</label>
-          <input id="cg-catname" className="cg-input" value={name} autoFocus
+          <input id="cg-catname" className="cg-input" value={name} autoFocus={isNew}
             placeholder="Coche, mascota, café…" onChange={(e) => setName(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && save()} />
         </div>
@@ -160,18 +160,31 @@ export function MetaEditor({ meta, aportado, ingresoMensualEstimado, necesidadFi
   });
   const [plazoStr, setPlazoStr] = useState(meta?.plazoMeses != null ? String(meta.plazoMeses) : "");
   const [lastEdited, setLastEdited] = useState(null); // 'cuota' | 'plazo' | null
+  const [repite, setRepite] = useState(meta?.repiteCada != null);
+  const [repiteCadaStr, setRepiteCadaStr] = useState(meta?.repiteCada != null ? String(meta.repiteCada) : "3");
 
   const cuotaNum = parseAmount(cuotaStr);
   const plazoNum = parseInt(plazoStr, 10);
 
   useEffect(() => {
+    if (repite) {
+      const repCada = parseInt(repiteCadaStr, 10);
+      if (repCada > 0) {
+        if (plazoStr !== String(repCada)) setPlazoStr(String(repCada));
+        if (!isNaN(cuotaNum) && cuotaNum > 0) {
+          setTotal(String(Math.round(cuotaNum * repCada * 100) / 100).replace(".", ","));
+        }
+      }
+      return;
+    }
     if (restante <= 0) return;
     if (lastEdited === "cuota" && !isNaN(cuotaNum) && cuotaNum > 0) {
       setPlazoStr(String(Math.max(1, Math.ceil(restante / cuotaNum))));
     } else if (lastEdited === "plazo" && plazoNum > 0) {
       setCuotaStr(String(Math.round((restante / plazoNum) * 100) / 100).replace(".", ","));
     }
-  }, [restante, lastEdited, cuotaNum, plazoNum]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [restante, lastEdited, cuotaNum, plazoNum, repite, repiteCadaStr]);
 
   const margenMaximo = ingresoMensualEstimado - necesidadFija - necesidadVariable;
   const factible = cuotaNum > 0 ? cuotaNum <= margenMaximo : null;
@@ -214,7 +227,7 @@ export function MetaEditor({ meta, aportado, ingresoMensualEstimado, necesidadFi
       id: categoryId,
       name: n,
       emoji: tipo === "objetivo" ? "🎯" : "🤝",
-      color: tipo === "objetivo" ? "#D99A2B" : "#1E4E45",
+      color: tipo === "objetivo" ? "#D99A2B" : "#4A9BC9",
       bucket: tipo === "objetivo" ? "ahorro" : "necesidad",
       budget: null,
     };
@@ -226,6 +239,8 @@ export function MetaEditor({ meta, aportado, ingresoMensualEstimado, necesidadFi
       plazoMeses: plazoFinal,
       recortesPendientes: recortesFinal,
       creadoEl: meta?.creadoEl || todayISO(),
+      repiteCada: (tipo === "objetivo" && repite && parseInt(repiteCadaStr, 10) > 0) ? parseInt(repiteCadaStr, 10) : null,
+      cicloDesde: meta?.cicloDesde || null,
     }, categoriaNueva);
     onClose();
   };
@@ -246,7 +261,7 @@ export function MetaEditor({ meta, aportado, ingresoMensualEstimado, necesidadFi
       </div>
 
       <label className="cg-lab" htmlFor="cg-metaname">Nombre</label>
-      <input id="cg-metaname" className="cg-input" value={name} autoFocus
+      <input id="cg-metaname" className="cg-input" value={name} autoFocus={isNew}
         placeholder={tipo === "objetivo" ? "Coche nuevo, viaje a Japón…" : "Préstamo de Ana, hipoteca…"}
         onChange={(e) => setName(e.target.value)} style={{ marginBottom: 10 }} />
 
@@ -271,11 +286,33 @@ export function MetaEditor({ meta, aportado, ingresoMensualEstimado, necesidadFi
         <div className="cg-field">
           <label className="cg-lab" htmlFor="cg-metaplazo">En cuántos meses</label>
           <input id="cg-metaplazo" className="cg-input num" inputMode="numeric" placeholder="Ej. 8"
-            value={plazoStr}
+            value={plazoStr} disabled={repite}
+            style={repite ? { opacity: 0.55 } : undefined}
             onChange={(e) => { setPlazoStr(e.target.value.replace(/\D/g, "")); setLastEdited("plazo"); }} />
         </div>
       </div>
-      <p className="cg-hint" style={{ marginBottom: 10 }}>Escribe uno de los dos y el otro se calcula solo.</p>
+      <p className="cg-hint" style={{ marginBottom: 10 }}>
+        {repite ? "Con \"Repetir cada\" activo, el plazo es el mismo que la repetición — solo hace falta la mensualidad." : "Escribe uno de los dos y el otro se calcula solo."}
+      </p>
+
+      {tipo === "objetivo" && (
+        <div style={{ marginBottom: 12 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 8, cursor: "pointer" }}>
+            <input type="checkbox" checked={repite} onChange={(e) => setRepite(e.target.checked)} style={{ width: 18, height: 18 }} />
+            <span style={{ fontSize: 13.5 }}>Repetir cada</span>
+            {repite && (
+              <input className="cg-input num" inputMode="numeric" style={{ width: 60, padding: "6px 8px" }}
+                value={repiteCadaStr} onChange={(e) => setRepiteCadaStr(e.target.value.replace(/\D/g, ""))} />
+            )}
+            <span style={{ fontSize: 13.5 }}>meses</span>
+          </label>
+          {repite && (
+            <p className="cg-hint" style={{ marginTop: 6 }}>
+              Al completarla, se reinicia sola a 0 € con una cuota nueva — para ahorros que se repiten, como una escapada cada trimestre.
+            </p>
+          )}
+        </div>
+      )}
 
       {vista === "combinada" ? (
         <div className="cg-card" style={{ background: "var(--bg)", margin: "4px 0 12px" }}>
@@ -291,7 +328,7 @@ export function MetaEditor({ meta, aportado, ingresoMensualEstimado, necesidadFi
           <p style={{ fontSize: 12, color: "var(--muted)", margin: "0 0 14px" }}>
             Reduciendo todo esto, te sobran {eur(sumaDeseoTotal)} €/mes más para la meta.
           </p>
-          <div className="cg-card" style={{ background: "#EAF0E8", marginBottom: 14 }}>
+          <div className="cg-card" style={{ background: "#E6F1FB", marginBottom: 14 }}>
             <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
               <span style={{ fontSize: 12.5, color: "var(--muted)" }}>Plazo ajustado</span>
               <span style={{ fontFamily: "var(--mono)", fontSize: 13, fontWeight: 500 }}>{plazoCombinado} {plazoCombinado === 1 ? "mes" : "meses"}</span>
@@ -307,7 +344,7 @@ export function MetaEditor({ meta, aportado, ingresoMensualEstimado, necesidadFi
           </div>
         </div>
       ) : cuotaNum > 0 && (
-        <div className="cg-card" style={{ background: factible ? "#EAF0E8" : "#FBEFDA", margin: "4px 0 12px" }}>
+        <div className="cg-card" style={{ background: factible ? "#E6F1FB" : "#FBEFDA", margin: "4px 0 12px" }}>
           <p style={{ fontWeight: 500, margin: "0 0 4px" }}>
             Cuota necesaria: {eur(cuotaNum)} €/mes
           </p>
@@ -368,12 +405,15 @@ export function MetaEditor({ meta, aportado, ingresoMensualEstimado, necesidadFi
 }
 
 /* ── editor de gasto ── */
-export function ExpenseEditor({ expense, categories, onSave, onDelete, onClose }) {
+export function ExpenseEditor({ expense, categories, bancos, masUsadoBancoId, onAddBanco, onSave, onDelete, onClose, formaPagoActivada }) {
   const [name, setName] = useState(expense.name);
   const [amount, setAmount] = useState(String(expense.amount).replace(".", ","));
   const [categoryId, setCategoryId] = useState(expense.categoryId);
+  const [catExpanded, setCatExpanded] = useState(() => !categories.slice(0, 4).some((c) => c.id === expense.categoryId));
   const [date, setDate] = useState(expense.date);
   const [time, setTime] = useState(expense.time || "");
+  const [formaPago, setFormaPago] = useState(expense.formaPago || null);
+  const [bancoId, setBancoId] = useState(expense.bancoId || null);
   const value = parseAmount(amount);
   const valid = name.trim() && !isNaN(value) && value > 0 && categoryId;
 
@@ -403,17 +443,48 @@ export function ExpenseEditor({ expense, categories, onSave, onDelete, onClose }
       <div style={{ marginTop: 12 }}>
         <span className="cg-lab">Categoría</span>
         <div className="cg-chips">
-          {categories.map((c) => (
+          {(catExpanded ? categories : categories.slice(0, 4)).map((c) => (
             <button key={c.id} className={`cg-chip ${categoryId === c.id ? "on" : ""}`}
-              style={categoryId === c.id ? { background: c.color } : undefined}
-              onClick={() => setCategoryId(c.id)}>
-              <span>{c.emoji}</span>{c.name}
+              style={{
+                ...(categoryId === c.id ? { background: c.color } : undefined),
+                ...(c.id === "gastos-periodicos-compartida" ? { padding: "10px 16px", fontSize: 14.5, fontWeight: 700 } : undefined),
+              }}
+              onClick={() => {
+                setCategoryId(c.id); setCatExpanded(false);
+                if (c.id === "gastos-periodicos-compartida" && !name.trim()) setName("Gastos periódicos");
+              }}>
+              <span><CatMark c={c} size={16} /></span>{c.name}
             </button>
           ))}
         </div>
+        {categories.length > 4 && (
+          <div style={{ textAlign: "right", marginTop: 6 }}>
+            <button className="cg-vermas" onClick={() => setCatExpanded((v) => !v)}>
+              {catExpanded ? "Ver menos" : "Ver más"}
+            </button>
+          </div>
+        )}
       </div>
-      <button className="cg-btn" disabled={!valid}
-        onClick={() => { onSave({ ...expense, name: name.trim(), amount: value, categoryId, date, time: time || null }); onClose(); }}>
+      {formaPagoActivada !== false && (
+      <div style={{ marginTop: 12 }}>
+        <span className="cg-lab">Forma de pago (opcional)</span>
+        <FormaPagoToggle formaPago={formaPago}
+          onEfectivo={() => { if (formaPago === "efectivo") { setFormaPago(null); } else { setFormaPago("efectivo"); setBancoId(null); } }}
+          onBizum={() => { if (formaPago === "bizum") { setFormaPago(null); } else { setFormaPago("bizum"); setBancoId(null); } }}
+          onTarjeta={() => { if (formaPago === "banco") { setFormaPago(null); setBancoId(null); } else { setFormaPago("banco"); } }}
+          onDomiciliado={() => { if (formaPago === "domiciliado") { setFormaPago(null); setBancoId(null); } else { setFormaPago("domiciliado"); } }} />
+        {(formaPago === "banco" || formaPago === "domiciliado") && (
+          <div style={{ marginTop: 8 }}>
+            <BancoPicker bancos={bancos || []} masUsadoId={masUsadoBancoId} selectedId={bancoId} onSelect={setBancoId} onAddNuevo={onAddBanco} />
+          </div>
+        )}
+      </div>
+      )}
+      <button className="cg-btn" style={{ marginTop: 12 }} disabled={!valid}
+        onClick={() => {
+          onSave({ ...expense, name: name.trim(), amount: value, categoryId, date, time: time || null, formaPago, bancoId: (formaPago === "banco" || formaPago === "domiciliado") ? bancoId : null });
+          onClose();
+        }}>
         Guardar cambios
       </button>
       <div style={{ marginTop: 12, textAlign: "center" }}>
@@ -426,10 +497,12 @@ export function ExpenseEditor({ expense, categories, onSave, onDelete, onClose }
 /* ── editor de ingreso ── */
 
 /* ── editor de ingreso ── */
-export function IncomeEditor({ income, onSave, onDelete, onClose }) {
+export function IncomeEditor({ income, bancos, masUsadoBancoId, onAddBanco, onSave, onDelete, onClose, formaPagoActivada }) {
   const [label, setLabel] = useState(income.label);
   const [amount, setAmount] = useState(String(income.amount).replace(".", ","));
   const [date, setDate] = useState(income.date || todayISO());
+  const [formaPago, setFormaPago] = useState(income.formaPago || null);
+  const [bancoId, setBancoId] = useState(income.bancoId || null);
   const value = parseAmount(amount);
   const valid = label.trim() && !isNaN(value) && value > 0;
 
@@ -450,8 +523,24 @@ export function IncomeEditor({ income, onSave, onDelete, onClose }) {
         <label className="cg-lab" htmlFor="cg-idate">Fecha</label>
         <input id="cg-idate" type="date" className="cg-input" value={date} onChange={(e) => setDate(e.target.value)} />
       </div>
-      <button className="cg-btn" disabled={!valid}
-        onClick={() => { onSave({ ...income, label: label.trim(), amount: value, date }); onClose(); }}>
+      {formaPagoActivada !== false && (
+      <div style={{ marginTop: 12 }}>
+        <span className="cg-lab">¿Dónde se recibió? (opcional)</span>
+        <div className="cg-toggle" style={{ marginTop: 6 }}>
+          <button className={formaPago === "efectivo" ? "on" : ""}
+            onClick={() => { setFormaPago(formaPago === "efectivo" ? null : "efectivo"); setBancoId(null); }}>Efectivo</button>
+          <button className={formaPago === "banco" ? "on" : ""}
+            onClick={() => setFormaPago(formaPago === "banco" ? null : "banco")}>Cuenta bancaria</button>
+        </div>
+        {formaPago === "banco" && (
+          <div style={{ marginTop: 8 }}>
+            <BancoPicker bancos={bancos || []} masUsadoId={masUsadoBancoId} selectedId={bancoId} onSelect={setBancoId} onAddNuevo={onAddBanco} />
+          </div>
+        )}
+      </div>
+      )}
+      <button className="cg-btn" style={{ marginTop: 12 }} disabled={!valid}
+        onClick={() => { onSave({ ...income, label: label.trim(), amount: value, date, formaPago, bancoId: formaPago === "banco" ? bancoId : null }); onClose(); }}>
         Guardar cambios
       </button>
       <div style={{ marginTop: 12, textAlign: "center" }}>
@@ -463,8 +552,9 @@ export function IncomeEditor({ income, onSave, onDelete, onClose }) {
 
 /* ── formulario de alta ── */
 
-export function FixedEditor({ item, categories, monthKey, onSave, onDelete, onClose, onSaveCategory }) {
-  const [kind, setKind] = useState(item?.kind || "gasto");
+export function FixedEditor({ item, defaultKind, categories, monthKey, bancos, masUsadoBancoId, onAddBanco, metas, gastosPeriodicosActivado, onCrearMiniMeta, onSave, onDelete, onClose, onSaveCategory, formaPagoActivada }) {
+  const [fijoId] = useState(() => item?.id || uid());
+  const [kind, setKind] = useState(item?.kind || defaultKind || "gasto");
   const [name, setName] = useState(item?.name || "");
   const [amount, setAmount] = useState(item ? String(item.amount).replace(".", ",") : "");
   const [categoryId, setCategoryId] = useState(item?.categoryId || null);
@@ -474,6 +564,9 @@ export function FixedEditor({ item, categories, monthKey, onSave, onDelete, onCl
   const [auto, setAuto] = useState(item?.auto !== false);
   const [newCat, setNewCat] = useState(false);
   const [catExpanded, setCatExpanded] = useState(() => categoryId ? !categories.slice(0, 4).some((c) => c.id === categoryId) : false);
+  const [formaPago, setFormaPago] = useState(item?.formaPago || null);
+  const [bancoId, setBancoId] = useState(item?.bancoId || null);
+  const [avisoMiniMeta, setAvisoMiniMeta] = useState(null);
   const isNew = !item;
   const value = parseAmount(amount);
   const d = Math.min(28, Math.max(1, parseInt(day, 10) || 1));
@@ -492,7 +585,7 @@ export function FixedEditor({ item, categories, monthKey, onSave, onDelete, onCl
       <div className="cg-row" style={{ marginTop: 12 }}>
         <div className="cg-field">
           <label className="cg-lab" htmlFor="cg-fname">Concepto</label>
-          <input id="cg-fname" className="cg-input" autoFocus value={name}
+          <input id="cg-fname" className="cg-input" autoFocus={isNew} value={name}
             placeholder={kind === "ingreso" ? "Nómina" : "Alquiler, Netflix…"}
             onChange={(e) => setName(e.target.value)} />
         </div>
@@ -546,9 +639,15 @@ export function FixedEditor({ item, categories, monthKey, onSave, onDelete, onCl
           <div className="cg-chips">
             {(catExpanded ? categories : categories.slice(0, 4)).map((c) => (
               <button key={c.id} className={`cg-chip ${categoryId === c.id ? "on" : ""}`}
-                style={categoryId === c.id ? { background: c.color } : undefined}
-                onClick={() => setCategoryId(c.id)}>
-                <span>{c.emoji}</span>{c.name}
+                style={{
+                  ...(categoryId === c.id ? { background: c.color } : undefined),
+                  ...(c.id === "gastos-periodicos-compartida" ? { padding: "10px 16px", fontSize: 14.5, fontWeight: 700 } : undefined),
+                }}
+                onClick={() => {
+                  setCategoryId(c.id); setCatExpanded(false);
+                  if (c.id === "gastos-periodicos-compartida" && !name.trim()) setName("Gastos periódicos");
+                }}>
+                <span><CatMark c={c} size={16} /></span>{c.name}
               </button>
             ))}
             <button className="cg-chip add" onClick={() => setNewCat(true)}>+ Nueva</button>
@@ -573,20 +672,54 @@ export function FixedEditor({ item, categories, monthKey, onSave, onDelete, onCl
         />
       )}
 
+      {kind === "gasto" && formaPagoActivada !== false && (
+        <div style={{ marginTop: 12 }}>
+          <span className="cg-lab">Forma de pago (opcional)</span>
+          <div style={{ marginTop: 6 }}>
+            <FormaPagoToggle formaPago={formaPago}
+              onEfectivo={() => { if (formaPago === "efectivo") { setFormaPago(null); } else { setFormaPago("efectivo"); setBancoId(null); } }}
+              onBizum={() => { if (formaPago === "bizum") { setFormaPago(null); } else { setFormaPago("bizum"); setBancoId(null); } }}
+              onTarjeta={() => { if (formaPago === "banco") { setFormaPago(null); setBancoId(null); } else { setFormaPago("banco"); } }}
+              onDomiciliado={() => { if (formaPago === "domiciliado") { setFormaPago(null); setBancoId(null); } else { setFormaPago("domiciliado"); } }} />
+          </div>
+          {(formaPago === "banco" || formaPago === "domiciliado") && (
+            <div style={{ marginTop: 8 }}>
+              <BancoPicker bancos={bancos || []} masUsadoId={masUsadoBancoId} selectedId={bancoId} onSelect={setBancoId} onAddNuevo={onAddBanco} />
+            </div>
+          )}
+        </div>
+      )}
 
       <button className="cg-btn" disabled={!valid}
         onClick={() => {
           onSave({
-            id: item?.id || uid(),
+            id: fijoId,
             kind, name: name.trim(), amount: value, day: d, every, auto,
             categoryId: kind === "gasto" ? categoryId : null,
             since,
             active: item?.active !== false,
+            formaPago: kind === "gasto" ? formaPago : null,
+            bancoId: kind === "gasto" && (formaPago === "banco" || formaPago === "domiciliado") ? bancoId : null,
           });
-          onClose();
+          const yaTieneMiniMeta = (metas || []).some((m) => m.fijoId === fijoId);
+          const aplicaMiniMeta = kind === "gasto" && every > 1 && gastosPeriodicosActivado && !yaTieneMiniMeta;
+          if (aplicaMiniMeta) {
+            onCrearMiniMeta({ id: fijoId, name: name.trim(), amount: value, every });
+            setAvisoMiniMeta(`Mini-meta creada: ${eur(value / every)} €/mes`);
+            setTimeout(onClose, 1400);
+          } else {
+            onClose();
+          }
         }}>
         {isNew ? "Crear fijo" : "Guardar cambios"}
       </button>
+
+      {avisoMiniMeta && (
+        <p style={{ marginTop: 10, fontSize: 12.5, color: "var(--pine)", textAlign: "center", display: "flex", alignItems: "center", justifyContent: "center", gap: 6 }}>
+          <i className="ti ti-piggy-bank" style={{ fontSize: 15 }} aria-hidden="true"></i>
+          {avisoMiniMeta}
+        </p>
+      )}
 
       {!isNew && (
         <div style={{ marginTop: 12, textAlign: "center" }}>

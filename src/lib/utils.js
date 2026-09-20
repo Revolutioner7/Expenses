@@ -184,3 +184,14 @@ export function cicloDePago(diaCobro, hoy = new Date()) {
   const fin = new Date(finExclusivo.getTime() - 86400000);
   return { inicio: isoLocal(inicio), fin: isoLocal(fin) };
 }
+
+/* ── mes efectivo: qué mes cuenta como "el actual" a efectos de qué pestaña abre
+   la app por defecto y de todo lo que depende de "esto es tu mes actual" (ciclo,
+   coach, aviso de copia). Sin día de cobro, es sencillamente el mes de calendario
+   de hoy. Con él, en cuanto llega ese día (inclusive), pasa a ser el mes siguiente
+   — coincide con el mismo punto de corte que ya usa cicloDePago. */
+export function mesEfectivo(diaCobro, hoy = new Date()) {
+  if (!diaCobro) return monthKeyOf(hoy);
+  if (hoy.getDate() < diaCobro) return monthKeyOf(hoy);
+  return shiftMonth(monthKeyOf(hoy), 1);
+}

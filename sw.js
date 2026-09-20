@@ -1,16 +1,17 @@
 /* Dineriko — funciona sin conexión */
-const CACHE = 'dineriko-v8';
+const CACHE = 'dineriko-v9';
 const SHELL = [
   './',
   './index.html',
-  './bundle.js?v=8',
-  './styles.css?v=8',
+  './bundle.js?v=9',
+  './styles.css?v=9',
   './manifest.webmanifest',
   './icon-192.png',
   './icon-512.png',
   './icon-512-maskable.png',
   './apple-touch-icon.png',
-  './piggy-d.png',
+  './hucha-d.png',
+  './gastos-periodicos.png',
   './font-bricolage.woff2',
   './font-karla.woff2',
   './font-mono-400.woff2',
