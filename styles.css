@@ -60,6 +60,25 @@ const CSS = `
 .cg-onboard-tag{font-size:13px;color:var(--muted);text-align:center;margin:0 0 28px;}
 .cg-onboard-sub{font-size:13px;font-weight:500;color:var(--ink);margin-bottom:8px;}
 .cg-onboard-step{font-size:12.5px;color:var(--muted);margin:0 0 5px;line-height:1.5;}
+/* preguntas de inicio: opciones grandes (se contesta con un toque), flecha de atrás y "Saltar" subrayado */
+.cg-onboard-stephead{display:grid;grid-template-columns:44px 1fr 44px;align-items:center;margin-bottom:12px;}
+.cg-onboard-back{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:var(--card);
+  color:var(--ink);cursor:pointer;display:grid;place-items:center;padding:0;}
+.cg-onboard-back:hover{background:#F4F8F5;}
+.cg-onboard-choices{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:12px;}
+.cg-onboard-choices.stack{grid-template-columns:minmax(0,1fr);}
+.cg-onboard-choice{min-height:64px;box-sizing:border-box;display:flex;align-items:center;justify-content:center;gap:6px;
+  padding:10px 12px;background:var(--card);border:1.5px solid #C3D4C9;border-radius:14px;
+  font-family:var(--body);font-size:16px;font-weight:600;line-height:1.25;color:var(--ink);text-align:center;cursor:pointer;
+  -webkit-tap-highlight-color:transparent;}
+.cg-onboard-choice:hover{border-color:var(--pine2);}
+.cg-onboard-choice:active{background:#E3F1FA;border-color:#2F7FAE;}
+.cg-onboard-choice.on{background:#E3F1FA;border:2px solid #2F7FAE;color:#0C447C;}
+.cg-onboard-choice.on svg{color:#2F7FAE;flex:none;}
+.cg-onboard-skip{text-align:center;font-size:12.5px;line-height:1.5;color:var(--muted);margin:22px 0 0;}
+.cg-onboard-skiplink{border:0;background:transparent;padding:8px 2px;font-family:var(--body);font-size:12.5px;font-weight:600;
+  color:#2F7FAE;text-decoration:underline;text-underline-offset:3px;cursor:pointer;}
+.cg-onboard-back:focus-visible,.cg-onboard-choice:focus-visible,.cg-onboard-skiplink:focus-visible{outline:2px solid var(--pine2);outline-offset:2px;}
 
 .cg-eye{position:absolute;top:14px;right:14px;width:32px;height:32px;border-radius:50%;border:0;
   background:rgba(242,245,241,.12);color:#F2F5F1;cursor:pointer;display:grid;place-items:center;padding:0;}
