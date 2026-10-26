@@ -1043,5 +1043,70 @@ desplegables de Ajustes, que siguen pendientes:
   Claude y subirse también al repositorio tras cada ronda.
 - En el contenedor de trabajo no existe `rsync`; copiar con `cp`.
 
+## 19. Sistema de trabajo autónomo (desde el 26 de octubre de 2026)
 
-_Prueba de publicación automática desde Claude: 26 de octubre de 2026._
+Rodrigo tiene menos tiempo para la app. Desde hoy Claude trabaja de forma autónoma dentro de estas
+reglas, acordadas con él. **Este apartado manda sobre la regla "no tocar código sin orden" de §18
+en lo que aquí se concreta; en todo lo demás, esa regla sigue vigente.**
+
+### Cómo se publica ahora
+- Claude tiene permiso de escritura en `github.com/Revolutioner7/Expenses` y publica con `git push`
+  a `main`. Se acabaron los zips para arrastrar (probado el 26 oct: commit `f9f1d32`).
+- GitHub Pages sigue en "Deploy from a branch": lo que se sube a `main` es lo que se sirve, así que
+  `bundle.js` compilado va en cada publicación. El workflow de Actions sigue sin activar.
+- Cada publicación sube `CACHE` en `sw.js` y, si existe, el `?v=` de `index.html`.
+
+### Tareas programadas (en la cuenta de Claude de Rodrigo)
+| Tarea | Cuándo | Qué hace |
+|---|---|---|
+| Mejora semanal | Lunes 7:41 | Lee este HANDOFF, pasa las pruebas, corrige bugs y los publica directamente, y construye UNA mejora pequeña del backlog en una rama `propuesta/<nombre>`, que deja como *Propuesta* en Notion |
+| Publicar aprobadas | Cada día 8:23 | Si en Notion hay propuestas en *Aprobada*, las fusiona en `main`, pasa pruebas, sube caché, compila, publica y las marca *Publicada* |
+| Estudio de mercado | Día 1 de cada mes 9:17 | Compara Dineriko función por función con las apps rivales en España, informe en Notion |
+| Revisión legal | 1 ene, abr, jul, oct 9:33 | Revisa RGPD, LSSI, Google Play, normas UE y obligaciones si se cobra; informe en Notion |
+
+### Notion es el panel de control
+- Página raíz "Dineriko" (`405212230ef6817bb05ecf72a4c4e55b`), con dentro:
+  - Tabla **Propuestas** (data source `collection://435739d1-8875-4e1b-8eaf-7a37c82839bc`), columnas
+    Nombre, Estado (Propuesta / Aprobada / Descartada / Publicada), Tipo (Mejora / Bug / Legal /
+    Mercado), Resumen, Rama, Fecha, Publicada el.
+  - "Dineriko — Estudios de mercado" (`3e1212230ef681259487d7558912a84c`), un informe por mes.
+  - "Dineriko — Legal" (`405212230ef68177b8b4cab3510ad735`), una revisión por trimestre.
+- **Rodrigo aprueba cambiando el Estado a Aprobada.** Nada más. Descarta con *Descartada*.
+
+### Límites de la autonomía
+- **Solo los bugs se publican sin aprobación.** Bug = algo que rompe o calcula mal. Todo lo demás
+  espera una *Aprobada*.
+- Nunca se proponen hechas, se diseñan con Rodrigo: Patrimonio, cubos de reparto del ingreso,
+  cuentas en servidor, analítica, monetización, cambios de dominio, nada que saque datos del
+  dispositivo.
+- Los datos de los usuarios no se tocan en ninguna publicación. Cambio de forma de datos ⇒ escalón
+  en `migrate()` y subir `version`.
+- Las reglas de oro de §9 y la regla de editabilidad de §18 siguen intactas.
+
+### Apuntes recientes sin construir (26 oct), para que la tarea semanal no los coja por su cuenta
+- **Pestañas ocultables desde Ajustes** (regla general para toda función nueva): fijas Mes,
+  Resumen, Fijos y Ajustes; ocultables Metas y cualquier pestaña nueva. Al ocultar, la app pregunta
+  si guardar los datos por si se reactiva; si se dice que no, segunda confirmación y se borran solo
+  los datos de esa pestaña (en Metas, las metas, nunca los gastos). Las apariciones de la pestaña
+  fuera de ella (tarjeta de mini-metas, desglose desde Mes) se esconden también.
+- **Pestaña Patrimonio**: cuentas de ahorro con saldo y tipo de interés, acciones y fondos. Las
+  cotizaciones se actualizan solas al abrir la app consultando un servicio externo: **excepción
+  consciente al principio 1**, aceptada por Rodrigo ("lo que implique menos trabajo para el
+  usuario"). Sale del dispositivo qué valores tiene, no cuántos ni el importe. Exige actualizar
+  la Política de Privacidad, elegir el servicio (coste 0, con límites) y abrir la CSP. Nace ya
+  como pestaña ocultable. Mismo bloqueo, cifrado y botón del ojo que el resto.
+- **Reparto del ingreso (cubos)**: cubos configurables con nombre y cuenta de destino (Impuestos,
+  Trimestral y anual, Fin de mes, Ahorro, Lo mío). Cada fijo, meta y gasto periódico se asigna a
+  un cubo, con propuesta automática por periodicidad. El reparto solo salta para ingresos por
+  encima de un umbral configurable (Rodrigo: 2.000 €). Saldo acumulado por cubo que debe cuadrar
+  con la cuenta real, con botón de ajuste al saldo real. Se diseña junto con Patrimonio: cada
+  cubo es una cuenta de Patrimonio con regla de alimentación. Orden de construcción: Patrimonio →
+  cubos → ocultación como regla general.
+- **Gasto compartido / "me lo devuelven"**: marcar un gasto para que la app enseñe el coste real
+  del usuario y no el bruto (hoy los reembolsos de Giulia o del padre aparecen como ingresos).
+- **Aviso de dirección antigua**: detectar que la app se abre desde la URL antigua redirigida y
+  avisar de instalar desde dineriko.com (caso real de una usuaria que creyó haber migrado).
+- **Hipoteca en dos categorías**: en agosto como Vivienda, en septiembre como "1a Hipoteca" (por
+  ligarla a la meta de deuda). No es duplicado, pero descuadra la comparativa de meses. Pensar
+  si la comparativa debe agrupar por meta.
+
