@@ -1043,3 +1043,5 @@ desplegables de Ajustes, que siguen pendientes:
   Claude y subirse también al repositorio tras cada ronda.
 - En el contenedor de trabajo no existe `rsync`; copiar con `cp`.
 
+
+_Prueba de publicación automática desde Claude: 26 de octubre de 2026._
