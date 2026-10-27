@@ -13,6 +13,8 @@ import {
 import { autoApplyAll, migrate } from "./lib/data.js";
 import { crearCopia, compartirApp, leerCopia } from "./lib/backup.js";
 import { canalActual, betaDesbloqueada, desbloquearBeta, cambiarCanal, TOQUES_PARA_DESBLOQUEAR } from "./lib/canal.js";
+import { cuotaPorId, mediaIngresosMensual, configPorDefecto } from "./lib/autonomo.js";
+import { AjustesAutonomo, ImpuestosTrimestreCard } from "./components/autonomo.jsx";
 
 import { EyeIcon, ExpandableList, CoachBox, AvisoActualizacionCard, AvisoGastosPeriodicosCard, AjusteSaldoCard, MetaRow, BancoPicker, FormaPagoToggle, GrupoAjustes, Sheet, BulkFormaPagoPicker, BulkFechaHoraPicker, SwipeableRow, CatMark, MenuOrdenar, MenuFiltrar } from "./components/ui.jsx";
 import { CategoryEditor, MetaEditor, ExpenseEditor, IncomeEditor, FixedEditor } from "./components/editors.jsx";
@@ -519,6 +521,40 @@ export default function App() {
   });
 
   const deleteFixed = (id) => setData((d) => ({ ...d, recurring: d.recurring.filter((r) => r.id !== id) }));
+
+  /* ── Soy autónomo: la configuración vive en data.autonomo; la cuota y la gestoría son fijos normales ── */
+  const autonomo = data?.autonomo || null;
+  const mediaMensual = useMemo(() => (data ? mediaIngresosMensual(data.months, todayISO()) : 0), [data?.months]);
+  const catAutonomo = (d) => (d.categories.find((c) => c.id === "banco") || d.categories.find((c) => c.bucket === "necesidad") || d.categories[0])?.id;
+  const fijoAutonomo = (d, id, nombre, importe) => {
+    const previo = id ? d.recurring.find((r) => r.id === id) : null;
+    if (previo) return { ...previo, name: nombre, amount: importe, active: true };
+    return { id: uid(), kind: "gasto", name: nombre, amount: importe, day: 28, every: 1, auto: true,
+      categoryId: catAutonomo(d), since: todayISO().slice(0, 7), active: true, formaPago: "domiciliado", bancoId: null };
+  };
+  const saveAutonomo = (cfg) => setData((d) => {
+    let recurring = [...d.recurring];
+    const poner = (fijo) => { recurring = recurring.some((r) => r.id === fijo.id) ? recurring.map((r) => (r.id === fijo.id ? fijo : r)) : [...recurring, fijo]; };
+    const quitar = (id) => { recurring = recurring.filter((r) => r.id !== id); };
+    const next = { ...configPorDefecto(), ...cfg };
+    const cuota = cuotaPorId(next.cuotaId);
+    if (cuota) { const f = fijoAutonomo(d, next.cuotaFijoId, "Cuota de autónomo", cuota.cuota); poner(f); next.cuotaFijoId = f.id; }
+    else if (next.cuotaFijoId) { quitar(next.cuotaFijoId); next.cuotaFijoId = null; }
+    if (next.gestoria > 0) { const f = fijoAutonomo(d, next.gestoriaFijoId, "Gestoría", next.gestoria); poner(f); next.gestoriaFijoId = f.id; }
+    else if (next.gestoriaFijoId) { quitar(next.gestoriaFijoId); next.gestoriaFijoId = null; }
+    return autoApplyAll({ ...d, recurring, autonomo: next });
+  });
+  const desactivarAutonomo = () => {
+    if (!window.confirm("Se deja de calcular la reserva de impuestos. ¿Quitar también los fijos de cuota y gestoría?")) {
+      setData((d) => ({ ...d, autonomo: { ...(d.autonomo || configPorDefecto()), activo: false } }));
+      return;
+    }
+    setData((d) => {
+      const a = d.autonomo || configPorDefecto();
+      const fuera = new Set([a.cuotaFijoId, a.gestoriaFijoId].filter(Boolean));
+      return { ...d, recurring: d.recurring.filter((r) => !fuera.has(r.id)), autonomo: { ...a, activo: false, cuotaFijoId: null, gestoriaFijoId: null } };
+    });
+  };
 
   /* ── bloqueo y cifrado ── */
   const abrirCon = async (dek, meta) => {
@@ -1748,6 +1784,8 @@ export default function App() {
               bancos={bancos} masUsadoBancoId={usoFormaPago.masUsadoBancoId} onAddBanco={saveBanco}
               formaPagoActivada={data.formaPagoActivada} />
 
+            {autonomo?.activo && <ImpuestosTrimestreCard months={data.months} cfg={autonomo} hoyISO={todayISO()} />}
+
             <div className="cg-toggle" style={{ marginBottom: 4 }}>
               <button className={vistaIngresos === "movimientos" ? "on" : ""} onClick={() => setVistaIngresos("movimientos")}>Movimientos</button>
               <button className={vistaIngresos === "fijos" ? "on" : ""} onClick={() => setVistaIngresos("fijos")}>Fijos</button>
@@ -2380,6 +2418,11 @@ export default function App() {
                     onClick={() => setData((d) => ({ ...d, gastosPeriodicosActivado: false }))}>Desactivado</button>
                 </div>
               </div>
+            </GrupoAjustes>
+
+            <GrupoAjustes id="autonomo" icono="ti-briefcase" titulo="Soy autónomo" resumen={autonomo?.activo ? "Activado" : "Reserva de impuestos"}
+              abierto={grupoAbierto} onToggle={setGrupoAbierto}>
+              <AjustesAutonomo key={autonomo?.activo ? "on" : "off"} cfg={autonomo} onSave={saveAutonomo} onDesactivar={desactivarAutonomo} mediaMensual={mediaMensual} />
             </GrupoAjustes>
 
             <GrupoAjustes id="datos" icono="ti-shield-lock" titulo="Datos y privacidad" resumen="Copia, contraseña, borrar"

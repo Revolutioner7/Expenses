@@ -400,7 +400,7 @@ export function GrupoAjustes({ id, icono, titulo, resumen, abierto, onToggle, ch
    Menú propio (no el desplegable nativo) para que se vea idéntico en iPhone y Android. Misma
    lógica en los dos: una píldora que abre un menú flotante; tocar fuera (o Escape) lo cierra.
    Iconos en SVG en línea: la fuente de iconos "ti" no está cargada en la app. */
-function usarCierreFuera(abierto, cerrar) {
+export function usarCierreFuera(abierto, cerrar) {
   const ref = useRef(null);
   useEffect(() => {
     if (!abierto) return undefined;
@@ -423,7 +423,7 @@ const IcoCheck = () => (
     strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
 );
 
-function OpcionMenu({ marcada, onClick, children, multiple }) {
+export function OpcionMenu({ marcada, onClick, children, multiple }) {
   return (
     <button type="button" className="cg-menu-opt" role={multiple ? "menuitemcheckbox" : "menuitemradio"}
       aria-checked={!!marcada} onClick={onClick}>
