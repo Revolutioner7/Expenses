@@ -254,3 +254,9 @@ label.cg-lab{display:block;font-family:var(--mono);font-size:10px;letter-spacing
 }
 .cg-foot{text-align:center;margin-top:18px;font-family:var(--mono);font-size:10px;
   letter-spacing:.12em;text-transform:uppercase;color:#8A9791;}
+
+/* ── Soy autónomo (v11) ── */
+.cg-link{background:none;border:0;padding:0;color:#2F7FAE;font:inherit;font-size:13px;font-weight:600;cursor:pointer;text-decoration:underline;text-underline-offset:3px;}
+.cg-link:hover{color:#0C447C;}
+.cg-menu-selector{top:48px;width:100%;}
+.cg-autonomo .cg-toggle button{min-height:40px;}
