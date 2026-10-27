@@ -12,6 +12,7 @@ import {
 } from "./lib/utils.js";
 import { autoApplyAll, migrate } from "./lib/data.js";
 import { crearCopia, compartirApp, leerCopia } from "./lib/backup.js";
+import { canalActual, betaDesbloqueada, desbloquearBeta, cambiarCanal, TOQUES_PARA_DESBLOQUEAR } from "./lib/canal.js";
 
 import { EyeIcon, ExpandableList, CoachBox, AvisoActualizacionCard, AvisoGastosPeriodicosCard, AjusteSaldoCard, MetaRow, BancoPicker, FormaPagoToggle, GrupoAjustes, Sheet, BulkFormaPagoPicker, BulkFechaHoraPicker, SwipeableRow, CatMark, MenuOrdenar, MenuFiltrar } from "./components/ui.jsx";
 import { CategoryEditor, MetaEditor, ExpenseEditor, IncomeEditor, FixedEditor } from "./components/editors.jsx";
@@ -675,6 +676,36 @@ export default function App() {
     const { estado, texto } = await compartirApp();
     if (estado === "copiado") window.alert("Mensaje copiado.");
     else if (estado === "manual") window.prompt("Copia este mensaje:", texto);
+  };
+
+  /* ── canal beta: oculto hasta siete toques en el número de versión ── */
+  const [canal, setCanal] = useState(() => canalActual());
+  const [betaVisible, setBetaVisible] = useState(() => betaDesbloqueada());
+  const toquesVersion = useRef(0);
+  const toqueVersion = () => {
+    if (betaVisible) return;
+    toquesVersion.current += 1;
+    if (toquesVersion.current >= TOQUES_PARA_DESBLOQUEAR) {
+      desbloquearBeta();
+      setBetaVisible(true);
+      window.alert("Canal beta desbloqueado. Lo tienes aquí mismo, en Ayuda y app.");
+    }
+  };
+  const recargar = () => { try { window.location.reload(); } catch (e) {} };
+  const pasarABeta = async () => {
+    if (!window.confirm("La beta puede tener fallos y cambiar cómo se guardan los datos. Antes de pasar, se guarda una copia de seguridad. ¿Continuar?")) return;
+    const hecho = await crearCopia(data);
+    if (!hecho) { window.alert("Sin copia no se pasa a la beta. Vuelve a intentarlo cuando la hayas guardado."); return; }
+    setData((d) => ({ ...d, lastBackupAt: todayISO() }));
+    if (!cambiarCanal("beta")) { window.alert("No se ha podido guardar la preferencia en este dispositivo."); return; }
+    setCanal("beta");
+    recargar();
+  };
+  const volverAEstable = () => {
+    if (!window.confirm("Vuelves a la versión estable. Tus datos se quedan como están. ¿Continuar?")) return;
+    cambiarCanal("estable");
+    setCanal("estable");
+    recargar();
   };
 
   const fileRef = useRef(null);
@@ -2460,9 +2491,33 @@ export default function App() {
                 </p>
               </div>
 
+              {betaVisible && (
+                <div className="cg-canal" style={{ marginBottom: 16, borderTop: "1px solid var(--line)", paddingTop: 14 }}>
+                  <h3 style={{ fontSize: 13, fontWeight: 700, margin: "0 0 4px" }}>Canal beta</h3>
+                  {canal === "beta" ? (
+                    <>
+                      <p className="cg-hint">
+                        Estás en la <b>beta</b>: ves las novedades antes que nadie. Si algo falla, vuelve a la
+                        estable y, si hiciera falta, restaura la copia que guardaste al entrar.
+                      </p>
+                      <button className="cg-ghost" onClick={volverAEstable}>Volver a la estable</button>
+                    </>
+                  ) : (
+                    <>
+                      <p className="cg-hint">
+                        Prueba las novedades en este mismo dispositivo antes de que salgan para todos. Antes de
+                        pasar se guarda una copia de seguridad, por si una versión nueva diera problemas.
+                      </p>
+                      <button className="cg-ghost" onClick={pasarABeta}>Pasar a la beta</button>
+                    </>
+                  )}
+                </div>
+              )}
+
               <div style={{ borderTop: "1px solid var(--line)", paddingTop: 14, textAlign: "center" }}>
-                <p style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)", margin: "0 0 6px" }}>
-                  {APP_NAME} v{APP_VERSION}
+                <p className="cg-version" onClick={toqueVersion}
+                  style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)", margin: "0 0 6px", userSelect: "none" }}>
+                  {APP_NAME} v{APP_VERSION}{canal === "beta" ? " · beta" : ""}
                 </p>
                 {"serviceWorker" in navigator && (
                   <button className="cg-ghost" style={{ width: "auto", margin: 0, padding: "6px 14px", fontSize: 12 }}

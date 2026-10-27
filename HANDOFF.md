@@ -1049,6 +1049,25 @@ Rodrigo tiene menos tiempo para la app. Desde hoy Claude trabaja de forma autón
 reglas, acordadas con él. **Este apartado manda sobre la regla "no tocar código sin orden" de §18
 en lo que aquí se concreta; en todo lo demás, esa regla sigue vigente.**
 
+### Canal beta en dineriko.com (construido el 27 oct, caché v10)
+- Dos bundles conviven en la misma dirección: `bundle.js` (estable, lo ve todo el mundo) y
+  `bundle-beta.js` (beta). `boot.js` elige cuál cargar leyendo `localStorage["dineriko-canal"]`
+  antes de arrancar React; si la beta no carga, vuelve sola a la estable. `index.html` ya no
+  enlaza `bundle.js` directamente, enlaza `boot.js?v=N`, y ese `?v=` se propaga a los bundles.
+- `sw.js` cachea los tres (`boot.js`, `bundle.js`, `bundle-beta.js`) con el mismo `?v=`.
+- Scripts: `npm run build` → `bundle.js`; `npm run build:beta` → `bundle-beta.js`.
+- En la app: `src/lib/canal.js` (único sitio que toca localStorage para esto). En Ajustes →
+  Ayuda y app, **siete toques en el número de versión** desbloquean la tarjeta "Canal beta"
+  (queda desbloqueada para siempre en ese dispositivo). "Pasar a la beta" **obliga a guardar una
+  copia de seguridad**: si se cancela la copia, no se cambia de canal. "Volver a la estable" no
+  toca los datos. En beta la versión se muestra como "vX · beta".
+- Rodrigo eligió probar en dineriko.com con sus datos reales (descartada la dirección aparte
+  `beta.dineriko.com`); la copia obligatoria es la red de seguridad acordada.
+- **Flujo de publicación con beta:** la rama `beta` del repositorio lleva el código en pruebas.
+  Publicar a beta = en `main`, compilar `bundle-beta.js` desde la rama `beta` y subir `?v=` y
+  `CACHE`. Promocionar a estable = fusionar `beta` en `main`, `npm run build` y `build:beta`
+  (quedan iguales), subir versión. Los bugs se corrigen en `main` y se fusionan también a `beta`.
+
 ### Cómo se publica ahora
 - Claude tiene permiso de escritura en `github.com/Revolutioner7/Expenses` y publica con `git push`
   a `main`. Se acabaron los zips para arrastrar (probado el 26 oct: commit `f9f1d32`).
@@ -1059,12 +1078,13 @@ en lo que aquí se concreta; en todo lo demás, esa regla sigue vigente.**
 ### Tareas programadas (en la cuenta de Claude de Rodrigo)
 | Tarea | Cuándo | Qué hace |
 |---|---|---|
-| Mejora semanal | Lunes 7:41 | Lee este HANDOFF, pasa las pruebas, corrige bugs y los publica directamente, y construye UNA mejora pequeña del backlog en una rama `propuesta/<nombre>`, que deja como *Propuesta* en Notion |
-| Publicar aprobadas | Cada día 8:23 | Si en Notion hay propuestas en *Aprobada*, las fusiona en `main`, pasa pruebas, sube caché, compila, publica y las marca *Publicada* |
+| Mejora semanal | Lunes 7:41 | Lee este HANDOFF, pasa las pruebas, corrige bugs y los publica directamente, y construye UNA mejora pequeña del backlog en la rama `beta`, la publica como `bundle-beta.js` y la deja como *Propuesta* en Notion |
+| Publicar aprobadas | Cada día 8:23 | Si en Notion hay propuestas en *Aprobada*, fusiona `beta` en `main`, pasa pruebas, sube caché, compila los dos bundles, publica y las marca *Publicada* |
 | Estudio de mercado | Día 1 de cada mes 9:17 | Compara Dineriko función por función con las apps rivales en España, informe en Notion |
 | Revisión legal | 1 ene, abr, jul, oct 9:33 | Revisa RGPD, LSSI, Google Play, normas UE y obligaciones si se cobra; informe en Notion |
 
 ### Notion es el panel de control
+- Rodrigo prueba cada propuesta en su móvil por el canal beta antes de aprobarla.
 - Página raíz "Dineriko" (`405212230ef6817bb05ecf72a4c4e55b`), con dentro:
   - Tabla **Propuestas** (data source `collection://435739d1-8875-4e1b-8eaf-7a37c82839bc`), columnas
     Nombre, Estado (Propuesta / Aprobada / Descartada / Publicada), Tipo (Mejora / Bug / Legal /
@@ -1109,4 +1129,8 @@ en lo que aquí se concreta; en todo lo demás, esa regla sigue vigente.**
 - **Hipoteca en dos categorías**: en agosto como Vivienda, en septiembre como "1a Hipoteca" (por
   ligarla a la meta de deuda). No es duplicado, pero descuadra la comparativa de meses. Pensar
   si la comparativa debe agrupar por meta.
+
+### Ronda del 27 de octubre de 2026
+- Canal beta construido y publicado (caché `dineriko-v10`, 126 pruebas en verde). `bundle-beta.js` arranca idéntico a `bundle.js`.
+- Siguiente en cola, aprobada por Rodrigo: función "Soy autónomo" (cuestionario de sí/no en Ajustes, cuota de autónomo en desplegable filtrable con tarifa plana de 80 € más los 15 tramos de 2026, reserva de IRPF e IVA por ingreso sobre el umbral, tarjeta "Impuestos del trimestre", fijos de cuota y gestoría). Genérica, con valores por defecto deducidos de las respuestas. Llega primero por el canal beta.
 

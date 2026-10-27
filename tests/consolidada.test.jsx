@@ -2269,3 +2269,81 @@ describe("Imágenes propias de categoría (v9)", () => {
   });
 });
 
+
+describe("Canal beta (v10)", () => {
+  const ONB = { seedOnboard: { done: true, installId: "x", avisoActualizacionVisto: true } };
+  const seed = () => ({ version: 8, categories: CATS, learned: {}, recurring: [], metas: [],
+    months: { "2026-08": { expenses: [], incomes: [] } } });
+  const abrirAyuda = async () => {
+    await act(async () => { click([...document.querySelectorAll(".cg-tab")].find((t) => t.textContent === "Ajustes")); });
+    await act(async () => { click([...document.querySelectorAll("button")].find((b) => b.textContent.includes("Ayuda y app"))); });
+  };
+  beforeEach(() => { window.localStorage.clear(); });
+
+  it("por defecto el canal beta no se ve, y la versión no lleva coletilla", async () => {
+    await montar(seed(), ONB);
+    await abrirAyuda();
+    expect(txt()).not.toContain("Canal beta");
+    expect(txt()).not.toContain("· beta");
+  });
+
+  it("siete toques en la versión desbloquean la tarjeta, y queda desbloqueada para siempre", async () => {
+    vi.stubGlobal("alert", vi.fn());
+    await montar(seed(), ONB);
+    await abrirAyuda();
+    const version = document.querySelector(".cg-version");
+    for (let i = 0; i < 6; i++) await act(async () => { click(version); });
+    expect(txt()).not.toContain("Canal beta");
+    await act(async () => { click(version); });
+    expect(txt()).toContain("Canal beta");
+    expect(txt()).toContain("Pasar a la beta");
+    expect(window.localStorage.getItem("dineriko-canal-desbloqueado")).toBe("1");
+  });
+
+  it("pasar a la beta exige copia de seguridad: si se cancela la copia, no se cambia de canal", async () => {
+    window.localStorage.setItem("dineriko-canal-desbloqueado", "1");
+    vi.stubGlobal("confirm", vi.fn(() => true));
+    vi.stubGlobal("alert", vi.fn());
+    // simulacro de hoja de compartir que la persona cancela
+    navigator.share = vi.fn(() => Promise.reject(Object.assign(new Error("x"), { name: "AbortError" })));
+    navigator.canShare = () => true;
+    await montar(seed(), ONB);
+    await abrirAyuda();
+    await act(async () => { click([...document.querySelectorAll("button")].find((b) => b.textContent === "Pasar a la beta")); });
+    expect(window.localStorage.getItem("dineriko-canal")).toBeNull();
+    expect(window.alert).toHaveBeenCalled();
+    delete navigator.share; delete navigator.canShare;
+  });
+
+  it("con la copia hecha, guarda la preferencia 'beta' y la fecha de última copia", async () => {
+    window.localStorage.setItem("dineriko-canal-desbloqueado", "1");
+    vi.stubGlobal("confirm", vi.fn(() => true));
+    vi.stubGlobal("alert", vi.fn());
+    navigator.share = vi.fn(() => Promise.resolve());
+    navigator.canShare = () => true;
+    const reload = vi.fn();
+    Object.defineProperty(window, "location", { value: { ...window.location, reload }, writable: true });
+    await montar(seed(), ONB);
+    await abrirAyuda();
+    await act(async () => { click([...document.querySelectorAll("button")].find((b) => b.textContent === "Pasar a la beta")); await new Promise((r) => setTimeout(r, 500)); });
+    expect(window.localStorage.getItem("dineriko-canal")).toBe("beta");
+    expect(reload).toHaveBeenCalled();
+    // la fecha de la copia queda anotada (se ve en Datos y privacidad como "Última copia: hoy")
+    await act(async () => { click([...document.querySelectorAll("button")].find((b) => b.textContent.includes("Datos y privacidad"))); });
+    expect(txt()).toContain("Última copia: hoy");
+    delete navigator.share; delete navigator.canShare;
+  });
+
+  it("en la beta, la versión lleva '· beta' y se puede volver a la estable", async () => {
+    window.localStorage.setItem("dineriko-canal-desbloqueado", "1");
+    window.localStorage.setItem("dineriko-canal", "beta");
+    vi.stubGlobal("confirm", vi.fn(() => true));
+    Object.defineProperty(window, "location", { value: { ...window.location, reload: vi.fn() }, writable: true });
+    await montar(seed(), ONB);
+    await abrirAyuda();
+    expect(txt()).toContain("· beta");
+    expect(txt()).toContain("Estás en la");
+    await act(async () => { click([...document.querySelectorAll("button")].find((b) => b.textContent === "Volver a la estable")); });
+    expect(window.localStorage.getItem("dineriko-canal")).toBeNull();
+  });
+});
