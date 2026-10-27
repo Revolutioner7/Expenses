@@ -1133,4 +1133,15 @@ en lo que aquí se concreta; en todo lo demás, esa regla sigue vigente.**
 ### Ronda del 27 de octubre de 2026
 - Canal beta construido y publicado (caché `dineriko-v10`, 126 pruebas en verde). `bundle-beta.js` arranca idéntico a `bundle.js`.
 - Siguiente en cola, aprobada por Rodrigo: función "Soy autónomo" (cuestionario de sí/no en Ajustes, cuota de autónomo en desplegable filtrable con tarifa plana de 80 € más los 15 tramos de 2026, reserva de IRPF e IVA por ingreso sobre el umbral, tarjeta "Impuestos del trimestre", fijos de cuota y gestoría). Genérica, con valores por defecto deducidos de las respuestas. Llega primero por el canal beta.
+- **27 oct, tarde: "Soy autónomo" publicada en el canal beta** (caché `dineriko-v11`, rama `beta`
+  en commit 6d2871c, 145 pruebas en verde; `main` solo lleva `bundle-beta.js` y `styles.css`
+  nuevos, `bundle.js` sigue siendo la v10 estable). Qué hay: `src/lib/autonomo.js` (motor:
+  tarifa plana + 15 tramos 2026, porcentajes por defecto, reparto por ingreso, resumen del
+  trimestre, media mensual para proponer tramo) y `src/components/autonomo.jsx` (apartado de
+  Ajustes "Soy autónomo" con preguntas de sí/no que se despliegan según la respuesta, desplegable
+  de cuota con filtro al escribir, gestoría opcional, porcentajes y umbral editables; tarjeta
+  "Impuestos del NT AAAA" en Ingresos). Datos: `data.autonomo` (opcional, sin migración; la cuota
+  y la gestoría se crean como fijos normales en la categoría Banco e impuestos, día 28,
+  domiciliados, y sus ids quedan en `cuotaFijoId`/`gestoriaFijoId`). "Ya no soy autónomo" apaga
+  y pregunta si quitar esos fijos. Pendiente de que Rodrigo la pruebe y la apruebe en Notion.
 
