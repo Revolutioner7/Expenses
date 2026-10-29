@@ -1145,3 +1145,38 @@ en lo que aquí se concreta; en todo lo demás, esa regla sigue vigente.**
   domiciliados, y sus ids quedan en `cuotaFijoId`/`gestoriaFijoId`). "Ya no soy autónomo" apaga
   y pregunta si quitar esos fijos. Pendiente de que Rodrigo la pruebe y la apruebe en Notion.
 
+## 20. App de iPhone en el App Store (desde el 29 de octubre de 2026)
+
+Rodrigo pagó la cuenta de Apple Developer (99 €/año, a su nombre, persona física; descartado
+publicar a nombre de una empresa). Decidido: la app de la tienda se fabrica en la nube, sin Xcode
+en su Mac.
+
+- **Envoltorio:** Capacitor 8.5.3 con Swift Package Manager (sin CocoaPods). `capacitor.config.json`
+  (appId `com.dineriko.app`), proyecto en `ios/App/`, esquema compartido `App`. `npm run www`
+  monta `www/` con los archivos publicados menos service worker, manifiesto y bundle beta;
+  `npm run ios:sync` compila, monta y copia al proyecto. Solo iPhone (`TARGETED_DEVICE_FAMILY = 1`,
+  evita capturas de iPad), solo vertical, idioma base español, `ITSAppUsesNonExemptEncryption = false`
+  (el cifrado es el estándar del sistema para proteger datos del propio usuario).
+- **Código:** `src/lib/nativo.js` concentra lo nativo; en la web todo devuelve false y dineriko.com
+  no cambia. Face ID: en la app no hay passkeys, así que `prfCrear` genera 32 bytes al azar y los
+  guarda en el llavero con `BIOMETRY_CURRENT_SET` (plugin `@capgo/capacitor-native-biometric`
+  8.8.2); el `credId` lleva prefijo `kc:` y se usa igual que el secreto PRF para envolver la DEK.
+  Quitar Face ID borra también el secreto del llavero. La copia de seguridad se escribe en la
+  caché y se abre la hoja de compartir (`@capacitor/filesystem` + `@capacitor/share`). Recordatorio
+  diario opcional en "Cómo se ve la app" (`@capacitor/local-notifications`, `data.recordatorio =
+  { activo, hora }`), solo visible en la app nativa. En la app nativa no hay canal beta ni "Buscar
+  actualizaciones" ni service worker; `isAppInstalled()` devuelve true.
+- **Fabricación:** `.github/workflows/ios-testflight.yml` en un Mac de GitHub (gratis por ser
+  repositorio público). Se lanza al subir cambios de la app a `beta` o a mano desde Actions.
+  Pruebas → compilar → `cap sync` → `xcodebuild archive` con firma automática en la nube →
+  `-exportArchive` con `destination: upload` directo a TestFlight. Número de compilación =
+  número de ejecución. Secretos necesarios en GitHub: `APPSTORE_KEY_ID`, `APPSTORE_ISSUER_ID`,
+  `APPSTORE_PRIVATE_KEY` (contenido del .p8, clave con rol Admin para poder crear el certificado
+  en la nube) y `APPLE_TEAM_ID`.
+- **Datos:** la app de la tienda empieza vacía; se restaura la copia una vez (como la mudanza de dominio).
+- **Pendiente de Rodrigo:** registrar el identificador `com.dineriko.app`, crear la app en App Store
+  Connect, crear la clave de API y poner los cuatro secretos. Después: probar por TestFlight, y para
+  publicar hacen falta capturas, descripción, política de privacidad en una URL pública y la ficha
+  de privacidad de la tienda ("no se recogen datos").
+- Pruebas: 151 en verde (6 nuevas en `tests/nativo.test.jsx`, con el iPhone simulado).
+
