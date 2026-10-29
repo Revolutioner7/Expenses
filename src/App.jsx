@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 
+import { API_URL, cuentasDisponibles } from "./constants.js";
+import { crearCuenta, entrarCuenta, recuperarConCodigo, salirCuenta, borrarCuenta, sincronizar } from "./lib/cuenta.js";
+import { AjustesCuenta } from "./components/cuenta.jsx";
 import { STORE_KEY, ONBOARD_KEY, WORKER_URL, APP_VERSION, APP_NAME, BUCKETS, DEFAULT_CATEGORIES, DEFAULT_BANCOS } from "./constants.js";
 import { store } from "./lib/storage.js";
 import {
@@ -183,6 +186,69 @@ export default function App() {
     }, 400);
     return () => clearTimeout(timer.current);
   }, [data]);
+
+  /* ── cuenta y sincronización ──
+     La sesión vive en data._cuenta: así queda cifrada con la contraseña local si la hay, igual que los
+     gastos. Nunca va en las copias ni al servidor (ver lib/cuenta.js). */
+  const dataRef = useRef(data);
+  dataRef.current = data;
+  const sync = useRef({ corriendo: false, pendiente: false, aplicado: null, timer: null });
+  const [estadoSync, setEstadoSync] = useState({ fase: "ok" });
+  const sincronizarAhora = async () => {
+    const s = sync.current;
+    if (s.corriendo) { s.pendiente = true; return; }
+    const snap = dataRef.current;
+    const sesion = snap?._cuenta;
+    if (!sesion || !cuentasDisponibles() || sesion.caducada) return;
+    s.corriendo = true;
+    setEstadoSync({ fase: "sincronizando" });
+    try {
+      const r = await sincronizar(API_URL, sesion, snap);
+      if (dataRef.current === snap) {
+        const nuevo = { ...r.data, _cuenta: r.sesion };
+        s.aplicado = nuevo;
+        setData(nuevo);
+      } else {
+        s.pendiente = true; // se ha tocado algo mientras: se repite con lo último, nada se pierde
+      }
+      setEstadoSync({ fase: "ok" });
+    } catch (e) {
+      if (e?.codigo === "sin-sesion") {
+        setData((d) => (d?._cuenta ? { ...d, _cuenta: { ...d._cuenta, caducada: true } } : d));
+        setEstadoSync({ fase: "caducada" });
+      } else {
+        setEstadoSync({ fase: "sin-conexion" });
+      }
+    } finally {
+      s.corriendo = false;
+      if (s.pendiente) { s.pendiente = false; clearTimeout(s.timer); s.timer = setTimeout(sincronizarAhora, 1500); }
+    }
+  };
+  useEffect(() => {
+    if (!data?._cuenta || locked || data === sync.current.aplicado) return;
+    clearTimeout(sync.current.timer);
+    sync.current.timer = setTimeout(sincronizarAhora, 2500);
+  }, [data, locked]);
+  useEffect(() => {
+    const alVolver = () => { if (document.visibilityState === "visible") sincronizarAhora(); };
+    document.addEventListener("visibilitychange", alVolver);
+    window.addEventListener("online", sincronizarAhora);
+    return () => { document.removeEventListener("visibilitychange", alVolver); window.removeEventListener("online", sincronizarAhora); };
+  }, []);
+  const ponerSesion = (sesion) => { setEstadoSync({ fase: "ok" }); setData((d) => ({ ...d, _cuenta: sesion })); };
+  const cuentaCrear = async (email, pass) => {
+    const { sesion, codigo } = await crearCuenta(API_URL, email, pass);
+    return { codigo, terminar: () => ponerSesion(sesion) };
+  };
+  const cuentaEntrar = async (email, pass) => ponerSesion(await entrarCuenta(API_URL, email, pass));
+  const cuentaRecuperar = async (email, codigo, pass) => ponerSesion(await recuperarConCodigo(API_URL, email, codigo, pass));
+  const quitarSesion = () => setData((d) => { const { _cuenta, ...resto } = d || {}; return resto; });
+  const cuentaSalir = async () => {
+    if (!window.confirm("Cierras la sesión en este dispositivo. Tus datos se quedan aquí y en tu cuenta. ¿Seguir?")) return;
+    await salirCuenta(API_URL, data._cuenta);
+    quitarSesion();
+  };
+  const cuentaBorrar = async (pass) => { await borrarCuenta(API_URL, data._cuenta, pass); quitarSesion(); };
 
   const month = data?.months?.[monthKey] || emptyMonth();
   const categories = data?.categories || [];
@@ -772,7 +838,8 @@ export default function App() {
       const n = Object.values(parsed.months).reduce((s, m) => s + (m.expenses || []).length, 0);
       const meses = Object.keys(parsed.months).length;
       if (!window.confirm(`La copia tiene ${n} gastos en ${meses} ${meses === 1 ? "mes" : "meses"}. Sustituye todo lo que hay ahora. ¿Continuar?`)) return;
-      setData(autoApplyAll(migrate(parsed)));
+      // con cuenta, la sesión se conserva: al sincronizar, la cuenta queda igual que la copia restaurada
+      setData((d) => ({ ...autoApplyAll(migrate(parsed)), ...(d?._cuenta ? { _cuenta: d._cuenta } : {}) }));
       setMonthKey(monthKeyOf(new Date()));
       setTab("gastos");
     } catch (e) {
@@ -830,8 +897,7 @@ export default function App() {
      (no hace falta "cerrarla" — con que la persona vuelva a mirar la pantalla, basta).
      Solo salta si seguía viendo el mes efectivo anterior: si navegó a mano a otro mes,
      no la interrumpe. */
-  const dataRef = useRef(data);
-  useEffect(() => { dataRef.current = data; }, [data]);
+  // dataRef se declara más arriba (lo usa también la sincronización) y se actualiza en cada render
   const mesEfectivoRef = useRef(null);
   const revisarMesEfectivo = useCallback(() => {
     const d = dataRef.current;
@@ -1437,7 +1503,8 @@ export default function App() {
   }, [searchQIngresos, data]);
 
   if (onboard.status === "install" || onboard.status === "consent") {
-    return <Onboarding startStep={onboard.status} onDone={finishOnboarding} bancos={bancos} masUsadoBancoId={usoFormaPago.masUsadoBancoId} onAddBanco={saveBanco} />;
+    return <Onboarding startStep={onboard.status} onDone={finishOnboarding} bancos={bancos} masUsadoBancoId={usoFormaPago.masUsadoBancoId} onAddBanco={saveBanco}
+      cuentas={cuentasDisponibles()} onEntrarCuenta={cuentaEntrar} onRecuperarCuenta={cuentaRecuperar} />;
   }
 
   if (locked) {
@@ -2270,6 +2337,17 @@ export default function App() {
 
         {tab === "ajustes" && (
           <>
+            {cuentasDisponibles() && (
+              <GrupoAjustes id="cuenta" icono="ti-user" titulo="Tu cuenta"
+                resumen={data._cuenta ? data._cuenta.email : "Sin cuenta"}
+                abierto={grupoAbierto} onToggle={setGrupoAbierto}>
+                <AjustesCuenta sesion={data._cuenta || null}
+                  estado={data._cuenta?.caducada ? { fase: "caducada" } : estadoSync}
+                  onCrear={cuentaCrear} onEntrar={cuentaEntrar} onRecuperar={cuentaRecuperar}
+                  onSalir={cuentaSalir} onBorrar={cuentaBorrar} onSincronizar={sincronizarAhora} />
+              </GrupoAjustes>
+            )}
+
             <GrupoAjustes id="vista" icono="ti-adjustments" titulo="Cómo se ve la app"
               resumen={heroModo === "gastado" ? "Gastado" : "Disponible"}
               abierto={grupoAbierto} onToggle={setGrupoAbierto}>

@@ -272,3 +272,9 @@ label.cg-lab{display:block;font-family:var(--mono);font-size:10px;letter-spacing
 .cg-onboard-q .cg-onboard-choice{min-height:72px;font-size:19px;border-radius:18px;}
 .cg-onboard-q .cg-onboard-skip{margin-top:26px;}
 .cg-onboard-q .cg-onboard-skiplink{font-size:16px;padding:12px 16px;}
+
+/* ── cuenta (v12) ── */
+.cg-codigo{font-family:var(--mono);font-size:17px;letter-spacing:.06em;line-height:1.6;background:#F4F8F5;border:1px dashed var(--line);
+  border-radius:12px;padding:14px;text-align:center;word-break:break-word;user-select:all;-webkit-user-select:all;margin:0 0 10px;}
+.cg-cuenta-error{color:var(--red);font-size:13.5px;margin:0 0 10px;}
+.cg-link[disabled]{opacity:.45;cursor:not-allowed;}

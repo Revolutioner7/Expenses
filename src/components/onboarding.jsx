@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { APP_NAME } from "../constants.js";
 import { BancoPicker } from "./ui.jsx";
 import { esNativo } from "../lib/nativo.js";
+import { FormCuenta } from "./cuenta.jsx";
 
 export function isAppInstalled() {
   if (esNativo()) return true; // la app de la tienda ya está instalada: nada de "añadir a pantalla de inicio"
@@ -67,8 +68,8 @@ function Pregunta({ paso, onBack, titulo, sub, children }) {
   );
 }
 
-export function Onboarding({ startStep, onDone, bancos, masUsadoBancoId, onAddBanco }) {
-  const [step, setStep] = useState(startStep); // 'install' | 'consent' | 'vista' | 'difpago' | 'pago' | 'periodicos'
+export function Onboarding({ startStep, onDone, bancos, masUsadoBancoId, onAddBanco, cuentas, onEntrarCuenta, onRecuperarCuenta }) {
+  const [step, setStep] = useState(startStep); // 'install' | 'consent' | 'cuenta' | 'vista' | 'difpago' | 'pago' | 'periodicos'
   const [accepted, setAccepted] = useState(false);
   const [email, setEmail] = useState("");
   const [heroModo, setHeroModo] = useState(null);
@@ -142,10 +143,23 @@ export function Onboarding({ startStep, onDone, bancos, masUsadoBancoId, onAddBa
           </div>
 
           <button className="cg-btn" disabled={!accepted} onClick={() => setStep("vista")}>Empezar</button>
+          {cuentas && (
+            <p style={{ textAlign: "center", margin: "14px 0 0" }}>
+              <button className="cg-link" disabled={!accepted} onClick={() => setStep("cuenta")}>Ya tengo cuenta</button>
+            </p>
+          )}
 
           <p style={{ textAlign: "center", fontSize: 11.5, color: "var(--muted)", marginTop: 14 }}>
             🔒 Los detalles de tus gastos nunca salen de este dispositivo
           </p>
+        </div>
+      ) : step === "cuenta" ? (
+        /* quien ya tiene cuenta entra y se salta las preguntas: sus respuestas vienen con sus datos */
+        <div className="cg-onboard">
+          <FormCuenta modoInicial="entrar" textoCancelar="Volver"
+            onEntrar={async (e, p) => { await onEntrarCuenta(e, p); onDone(e, null, null, null, null); }}
+            onRecuperar={async (e, c, p) => { await onRecuperarCuenta(e, c, p); onDone(e, null, null, null, null); }}
+            onCancelar={() => setStep("consent")} />
         </div>
       ) : step === "vista" ? (
         <Pregunta paso={3} onBack={() => setStep("consent")}

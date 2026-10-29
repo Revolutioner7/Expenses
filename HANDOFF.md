@@ -1186,3 +1186,41 @@ en su Mac.
   porque al pegarla en GitHub se pierden los saltos de línea; (3) Apple exige el SDK de iOS 26: el
   procedimiento elige el Xcode 26+ más reciente del Mac de GitHub.
 
+## 21. Cuentas de usuario (fase 1, construida el 29 oct, sin publicar todavía)
+
+Diseño completo y decisiones de Rodrigo en Notion: Dineriko → "Diseño: cuentas de usuario".
+Cambio respecto al diseño: **Cloudflare en vez de Supabase** (Supabase gratis ya tenía sus dos
+proyectos ocupados por Reliko; Cloudflare cuesta 0 € y la cuenta ya existía).
+
+- **Servidor** (`server/`): Worker + D1 con jurisdicción UE. Rutas en la cabecera de
+  `server/src/index.js`. Nunca ve contraseñas ni datos: guarda `HMAC(PEPPER, authKey)`,
+  `HMAC(PEPPER, recAuth)`, la DEK envuelta dos veces (contraseña y código) y registros cifrados
+  cuyas claves también van cifradas (HMAC con una llave derivada de la DEK), así que ni siquiera
+  sabe cuántos gastos hay en un mes. Bloqueo de 15 min tras 10 fallos. Sesiones de 365 días.
+  **El secreto PEPPER no se puede cambiar nunca**: dejaría a todo el mundo fuera.
+- **Publicación:** `.github/workflows/server-deploy.yml` (Ubuntu de GitHub). Crea la base de datos
+  la primera vez con `--jurisdiction eu`, aplica migraciones, publica y crea PEPPER si falta.
+  Secretos: `CLOUDFLARE_API_TOKEN` (Workers + D1) y `CLOUDFLARE_ACCOUNT_ID`. Desde el entorno de
+  Claude la API de Cloudflare está bloqueada; todo pasa por GitHub.
+- **Dispositivo** (`src/lib/cuenta.js`): PBKDF2 600.000 → HKDF → authKey + kek; código de
+  recuperación de 20 bytes en base32 de Crockford; cada gasto, ingreso, categoría, fijo y meta es
+  un registro aparte (`aplanar`/`reconstruir`); sincronización por registro con huellas: cambiado
+  solo en un lado gana ese lado, en los dos gana el último en sincronizar; en la primera
+  sincronización de un dispositivo que acaba de entrar manda la cuenta. Los borrados viajan como
+  marca cifrada para que no reaparezcan.
+- **App:** la sesión vive en `data._cuenta` (queda cifrada con la contraseña local si la hay),
+  nunca va en las copias de seguridad ni se lee de ellas. Restaurar una copia con cuenta conserva
+  la sesión y la cuenta pasa a ser igual que la copia. Sincroniza 2,5 s después de cada cambio, al
+  volver la app a primer plano y al recuperar conexión. Ajustes → "Tu cuenta" (crear, entrar,
+  contraseña olvidada con el código, sincronizar, cerrar sesión, borrar cuenta). En el inicio,
+  "Ya tengo cuenta" entra y se salta las preguntas. **Todo oculto mientras `API_URL` en
+  `constants.js` sea el valor de relleno.**
+- **Pruebas:** `server/prueba-integracion.mjs` (13 comprobaciones de punta a punta con dos
+  dispositivos contra `wrangler dev --local`, incluida que en la base de datos no se lee nada) y
+  `tests/cuenta.test.jsx` (9). Total app: 161.
+- **Falta para publicar:** que Rodrigo cree el token de Cloudflare y los dos secretos; publicar el
+  servidor; poner la URL real en `API_URL` y en el `connect-src` de la CSP de `index.html`;
+  actualizar la Política de Privacidad (responsable del tratamiento, email, Cloudflare como
+  encargado, jurisdicción UE). Fases 2 a 4 sin empezar (Apple/Google, "Lo he perdido todo", aviso
+  a quien no tiene cuenta).
+

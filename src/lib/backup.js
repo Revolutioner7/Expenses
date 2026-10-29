@@ -8,7 +8,9 @@ import { esNativo, compartirArchivoNativo, compartirTextoNativo } from "./nativo
    si la persona canceló la hoja de compartir. */
 export async function crearCopia(data) {
   const filename = `gastos-copia-${todayISO()}.json`;
-  const texto = JSON.stringify(data, null, 2);
+  // la sesión de la cuenta es de este dispositivo y lleva su llave: nunca va en la copia
+  const { _cuenta, ...sinSesion } = data || {};
+  const texto = JSON.stringify(sinSesion, null, 2);
   if (esNativo()) return compartirArchivoNativo(filename, texto); // app de iPhone: hoja de compartir del sistema
   const blob = new Blob([texto], { type: "application/json" });
   let hecho = false;
@@ -75,6 +77,7 @@ export function leerCopia(file) {
         if (!parsed || !Array.isArray(parsed.categories) || typeof parsed.months !== "object") {
           throw new Error("formato");
         }
+        delete parsed._cuenta; // por si alguien edita una copia a mano: la sesión nunca viene de un archivo
         resolve(parsed);
       } catch (e) {
         reject(new Error("Ese archivo no es una copia de la app. Busca uno que empiece por «gastos-copia»."));
