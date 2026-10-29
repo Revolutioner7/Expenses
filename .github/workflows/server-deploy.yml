@@ -66,6 +66,8 @@ jobs:
             [ ${#SERVER_PEPPER} -ge 32 ] || { echo "::error::SERVER_PEPPER es demasiado corto (mínimo 32 caracteres)"; exit 1; }
             printf '%s' "$SERVER_PEPPER" | npx wrangler secret put PEPPER
             echo "PEPPER fijado desde el secreto de GitHub."
+            # el secreto tarda unos segundos en llegar a todos los servidores de Cloudflare
+            sleep 30
           elif npx wrangler secret list --format json 2>/dev/null | jq -e '.[] | select(.name=="PEPPER")' >/dev/null; then
             echo "PEPPER ya existe, no se toca."
           else
