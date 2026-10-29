@@ -60,9 +60,23 @@ jobs:
         run: sudo xcode-select -s "$(ls -d /Applications/Xcode_16*.app | sort -V | tail -1)" && xcodebuild -version
 
       - name: Preparar la clave de App Store Connect
+        env:
+          ASC_P8: ${{ secrets.APPSTORE_PRIVATE_KEY }}
         run: |
           mkdir -p "$RUNNER_TEMP/asc"
-          printf '%s' "${{ secrets.APPSTORE_PRIVATE_KEY }}" > "$RUNNER_TEMP/asc/AuthKey_${ASC_KEY_ID}.p8"
+          # la clave se reconstruye en formato PEM aunque se haya pegado sin saltos de línea o con espacios
+          printf '%s' "$ASC_P8" | tr -d '\r' > "$RUNNER_TEMP/asc/raw.txt"
+          cuerpo=$(sed -e 's/-----BEGIN PRIVATE KEY-----//' -e 's/-----END PRIVATE KEY-----//' "$RUNNER_TEMP/asc/raw.txt" | tr -d ' \n\t')
+          { echo "-----BEGIN PRIVATE KEY-----"; echo "$cuerpo" | fold -w 64; echo "-----END PRIVATE KEY-----"; } > "$RUNNER_TEMP/asc/AuthKey_${ASC_KEY_ID}.p8"
+          rm -f "$RUNNER_TEMP/asc/raw.txt"
+          # diagnóstico sin revelar nada: tamaño del cuerpo y si es una clave EC válida
+          echo "Clave: ${#cuerpo} caracteres de cuerpo (una clave de Apple suele tener unos 200)"
+          if ! openssl pkey -in "$RUNNER_TEMP/asc/AuthKey_${ASC_KEY_ID}.p8" -noout 2>/dev/null; then
+            grep -q "BEGIN PRIVATE KEY" <<<"$ASC_P8" || echo "::error::El secreto APPSTORE_PRIVATE_KEY no contiene la línea -----BEGIN PRIVATE KEY-----"
+            echo "::error::El secreto APPSTORE_PRIVATE_KEY no es una clave privada válida: vuelve a pegar el contenido entero del archivo AuthKey_${ASC_KEY_ID}.p8"
+            exit 1
+          fi
+          echo "Clave privada válida."
           sed "s/__TEAM_ID__/${TEAM_ID}/" ios/ci/ExportOptions.plist > "$RUNNER_TEMP/ExportOptions.plist"
 
       - name: Fabricar (archive)
