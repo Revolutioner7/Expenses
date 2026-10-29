@@ -54,13 +54,23 @@ jobs:
       - name: Publicar el servidor
         run: npx wrangler deploy 2>&1 | tee deploy.log
 
-      - name: Secreto del servidor (solo la primera vez; NUNCA se cambia, o nadie podría entrar)
+      - name: Secreto del servidor (PEPPER)
+        # Si existe el secreto SERVER_PEPPER en GitHub, es la fuente: Rodrigo guarda una copia en su
+        # gestor de contraseñas, así que el servidor se puede rehacer sin dejar a nadie fuera.
+        # Si no existe, solo se crea uno al azar cuando el servidor aún no tiene ninguno.
+        # OJO: cambiar este valor invalida todas las contraseñas y códigos de recuperación.
+        env:
+          SERVER_PEPPER: ${{ secrets.SERVER_PEPPER }}
         run: |
-          if npx wrangler secret list --format json 2>/dev/null | jq -e '.[] | select(.name=="PEPPER")' >/dev/null; then
+          if [ -n "$SERVER_PEPPER" ]; then
+            [ ${#SERVER_PEPPER} -ge 32 ] || { echo "::error::SERVER_PEPPER es demasiado corto (mínimo 32 caracteres)"; exit 1; }
+            printf '%s' "$SERVER_PEPPER" | npx wrangler secret put PEPPER
+            echo "PEPPER fijado desde el secreto de GitHub."
+          elif npx wrangler secret list --format json 2>/dev/null | jq -e '.[] | select(.name=="PEPPER")' >/dev/null; then
             echo "PEPPER ya existe, no se toca."
           else
             openssl rand -base64 48 | tr -d '\n' | npx wrangler secret put PEPPER
-            echo "::notice::Se ha creado el secreto PEPPER del servidor."
+            echo "::warning::PEPPER creado al azar y sin copia. Guarda uno en SERVER_PEPPER."
           fi
 
       - name: Comprobar que responde
