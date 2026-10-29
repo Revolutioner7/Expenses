@@ -1179,4 +1179,10 @@ en su Mac.
   publicar hacen falta capturas, descripción, política de privacidad en una URL pública y la ficha
   de privacidad de la tienda ("no se recogen datos").
 - Pruebas: 151 en verde (6 nuevas en `tests/nativo.test.jsx`, con el iPhone simulado).
+- 29 oct: **primera compilación subida a TestFlight** (ejecución 40853913788, ✓ en 4 min). Lecciones de
+  la puesta en marcha: (1) el registro completo de Actions no se puede descargar desde el entorno de
+  Claude (lo bloquea la red), por eso los pasos de Xcode vuelcan sus errores como anotaciones, que sí
+  se leen con `gh run view`; (2) la clave .p8 se reconstruye en formato PEM en el propio procedimiento
+  porque al pegarla en GitHub se pierden los saltos de línea; (3) Apple exige el SDK de iOS 26: el
+  procedimiento elige el Xcode 26+ más reciente del Mac de GitHub.
 
