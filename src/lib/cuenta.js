@@ -180,25 +180,45 @@ export async function api(base, ruta, { token, body, method } = {}) {
 
 /* ── altas y entradas. Todas devuelven la sesión que se guarda en el dispositivo:
    { email, token, dek (base64), rev, base } ── */
-export async function crearCuenta(base, email, contrasena) {
+/* quién entra: { email } con contraseña, o { provider, idToken, nonce } con Apple/Google.
+   En los dos casos el secreto (contraseña o código de Dineriko) se trata igual. */
+const identidad = (q) => (q.provider ? { provider: q.provider, idToken: q.idToken, nonce: q.nonce } : { email: q.email });
+
+async function alta(base, quien, secreto) {
   const sal = salAleatoria();
-  const { authKey, kek } = await derivarDeContrasena(contrasena, sal);
+  const { authKey, kek } = await derivarDeContrasena(secreto, sal);
   const codigo = generarCodigo();
   const { recAuth, recKek } = await derivarDeCodigo(codigo);
   const dek = nuevaDEK();
   const wrapped = { pass: await envolver(dek, kek), rec: await envolver(dek, recKek) };
-  const { token } = await api(base, "/auth/register", { body: { email, salt: sal, iter: ITER_CUENTA, authKey, recAuth, wrapped } });
-  return { sesion: { email: email.trim().toLowerCase(), token, dek: b64(dek), rev: 0, base: {} }, codigo };
+  const r = await api(base, "/auth/register", { body: { ...identidad(quien), salt: sal, iter: ITER_CUENTA, authKey, recAuth, wrapped } });
+  const email = (r.email || quien.email).trim().toLowerCase();
+  return { sesion: { email, token: r.token, dek: b64(dek), rev: 0, base: {}, ...(quien.provider ? { proveedor: quien.provider } : {}) }, codigo };
 }
 
-export async function entrarCuenta(base, email, contrasena) {
-  const { salt, iter } = await api(base, "/auth/prelogin", { body: { email } });
-  const { authKey, kek } = await derivarDeContrasena(contrasena, salt, iter);
-  const { token, wrapped } = await api(base, "/auth/login", { body: { email, authKey } });
+async function entrada(base, quien, secreto, { salt, iter }) {
+  const { authKey, kek } = await derivarDeContrasena(secreto, salt, iter);
+  const r = await api(base, "/auth/login", { body: { ...identidad(quien), authKey } });
   let dek;
-  try { dek = await desenvolver(wrapped.pass, kek); } catch (e) { throw new ErrorCuenta("credenciales", 401); }
-  return { email: email.trim().toLowerCase(), token, dek: b64(dek), rev: 0, base: {} };
+  try { dek = await desenvolver(r.wrapped.pass, kek); } catch (e) { throw new ErrorCuenta("credenciales", 401); }
+  const email = (r.email || quien.email).trim().toLowerCase();
+  return { email, token: r.token, dek: b64(dek), rev: 0, base: {}, ...(quien.provider ? { proveedor: quien.provider } : {}) };
 }
+
+export const crearCuenta = (base, email, contrasena) => alta(base, { email }, contrasena);
+
+export async function entrarCuenta(base, email, contrasena) {
+  const params = await api(base, "/auth/prelogin", { body: { email } });
+  return entrada(base, { email }, contrasena, params);
+}
+
+/* ── Apple y Google ──
+   social = { provider, idToken, nonce } recién conseguido de Apple o Google (sirve unos minutos).
+   consultarSocial dice qué toca: "nueva" (elegir código de Dineriko), "existe" (escribir el código)
+   o "vincular" (ya hay cuenta con ese email: escribir su contraseña, y queda unida). */
+export const consultarSocial = (base, social) => api(base, "/auth/social", { body: identidad(social) });
+export const crearCuentaSocial = (base, social, codigoDineriko) => alta(base, social, codigoDineriko);
+export const entrarCuentaSocial = (base, social, secreto, consulta) => entrada(base, social, secreto, consulta);
 
 /* contraseña olvidada: con el código se abre la llave de datos y se envuelve con la contraseña nueva */
 export async function recuperarConCodigo(base, email, codigo, nuevaContrasena) {

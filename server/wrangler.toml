@@ -12,4 +12,7 @@ database_id = "00000000-0000-0000-0000-000000000000"
 migrations_dir = "migrations"
 
 [vars]
+# a quién va dirigido el token de Apple/Google: la app de iPhone, la web, y los clientes de Google
+APPLE_AUDIENCES = "com.dineriko.app,com.dineriko.web"
+GOOGLE_AUDIENCES = ""
 ALLOWED_ORIGINS = "https://dineriko.com,https://www.dineriko.com,https://revolutioner7.github.io,capacitor://localhost,http://localhost"

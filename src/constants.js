@@ -12,6 +12,11 @@ export const WEB_URL = "https://dineriko.com/";
 /* servidor de cuentas (Cloudflare). Mientras sea el valor de relleno, las cuentas no aparecen en la app */
 export const API_URL = "https://dineriko-api.rodrigoharmat.workers.dev";
 export const cuentasDisponibles = () => !API_URL.includes("REEMPLAZA-ESTO");
+/* entrar con Apple y Google. No son secretos: identifican a Dineriko ante Apple y Google.
+   Vacíos = el botón no aparece. El servidor tiene que conocer los mismos (server/wrangler.toml). */
+export const APPLE_SERVICE_ID = "com.dineriko.web";
+export const GOOGLE_WEB_CLIENT_ID = "";
+export const GOOGLE_IOS_CLIENT_ID = "";
 export const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=REEMPLAZA-ESTO";
 // El nombre visible de la app, en un único sitio — cambiarlo aquí basta para todo el JS.
 // index.html, manifest.webmanifest y sw.js son archivos estáticos aparte y no leen esta

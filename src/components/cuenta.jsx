@@ -1,4 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
+import { conseguirToken, socialDisponible } from "../lib/social.js";
+
+const NOMBRE = { apple: "Apple", google: "Google" };
+const esApple = () => typeof navigator !== "undefined" && /iPhone|iPad|Macintosh/.test(navigator.userAgent || "");
 
 /* traduce los códigos del servidor a algo que se entienda */
 export function mensajeError(e) {
@@ -9,6 +13,10 @@ export function mensajeError(e) {
     case "demasiados-intentos": return "Demasiados intentos seguidos. Espera un cuarto de hora y vuelve a probar.";
     case "email": return "Ese email no tiene buena pinta. Revísalo.";
     case "sin-sesion": return "Tu sesión ha caducado. Vuelve a entrar.";
+    case "identidad": return "No hemos podido confirmar que eres tú. Vuelve a tocar el botón y prueba otra vez.";
+    case "sin-email": return "Para la cuenta necesitamos tu email, y no nos ha llegado. Prueba con tu email y una contraseña.";
+    case "proveedor-no-disponible": return "Ahora mismo no podemos hablar con Apple ni con Google. Prueba en un rato o entra con tu email.";
+    case "social": return "No se ha podido terminar. Prueba otra vez.";
     default: return "Algo ha fallado por nuestro lado. Prueba otra vez en un rato.";
   }
 }
@@ -62,8 +70,86 @@ function MostrarCodigo({ codigo, onListo }) {
 }
 
 /* formulario de entrar / crear / recuperar. modo: "entrar" | "crear" | "recuperar" */
-export function FormCuenta({ modoInicial = "entrar", onCrear, onEntrar, onRecuperar, onCancelar, textoCancelar = "Cancelar" }) {
+/* después de Apple/Google: elegir el código de Dineriko (cuenta nueva), escribirlo (ya existe)
+   o escribir la contraseña de la cuenta que ya había con ese email (queda unida) */
+function PasoSocial({ token, consulta, social, onCodigoNuevo, onVolver, onOlvidado }) {
+  const [pass, setPass] = useState("");
+  const [pass2, setPass2] = useState("");
+  const [error, setError] = useState("");
+  const [ocupado, setOcupado] = useState(false);
+  const quien = NOMBRE[token.provider];
+  const nueva = consulta.estado === "nueva";
+  const largoOk = pass.length >= CONTRASENA_MIN;
+  const listo = nueva ? largoOk && pass === pass2 : pass.length > 0;
+
+  const enviar = async () => {
+    if (!listo || ocupado) return;
+    setError(""); setOcupado(true);
+    try {
+      if (nueva) onCodigoNuevo(await social.crear(token, pass));
+      else await social.entrar(token, pass, consulta);
+    } catch (e) {
+      // el permiso de Apple/Google dura unos minutos: si ha caducado, hay que volver a tocar el botón
+      if (e?.codigo === "identidad") { onVolver(e); return; }
+      setError(mensajeError(e));
+    } finally {
+      setOcupado(false);
+    }
+  };
+
+  const textos = {
+    nueva: {
+      titulo: "Elige tu código de Dineriko",
+      intro: `${quien} confirma que eres tú, pero no puede abrir tus datos. Este código los cifra y solo lo sabes tú. Te lo pediremos al entrar desde un dispositivo nuevo, no cada día.`,
+      etiqueta: "Código de Dineriko", boton: "Crear cuenta",
+    },
+    existe: {
+      titulo: "Hola de nuevo",
+      intro: `${quien} ya sabe que eres tú. Ahora tu código de Dineriko, que es lo que abre tus datos.`,
+      etiqueta: "Código de Dineriko", boton: "Entrar",
+    },
+    vincular: {
+      titulo: "Ya tienes cuenta",
+      intro: `Con ${consulta.email} ya hay una cuenta de Dineriko. Escribe su contraseña y la unimos a ${quien}. A partir de ahora entrarás con ${quien} y esa misma contraseña.`,
+      etiqueta: "Contraseña de Dineriko", boton: "Unir y entrar",
+    },
+  }[consulta.estado] || {};
+
+  return (
+    <div className="cg-cuenta-form" onKeyDown={(e) => e.key === "Enter" && enviar()}>
+      <h3 style={{ fontSize: 17, fontWeight: 700, margin: "0 0 4px" }}>{textos.titulo}</h3>
+      <p className="cg-hint" style={{ marginBottom: 6 }}>{textos.intro}</p>
+      <p className="cg-hint" style={{ marginBottom: 14, color: "var(--ink)" }}>{consulta.email}</p>
+      <Campo id="cg-social-pass" etiqueta={textos.etiqueta} type="password" autoComplete={nueva ? "new-password" : "current-password"}
+        value={pass} onChange={(e) => setPass(e.target.value)} />
+      {nueva && (
+        <>
+          <Campo id="cg-social-pass2" etiqueta="Repítelo" type="password" autoComplete="new-password"
+            value={pass2} onChange={(e) => setPass2(e.target.value)} />
+          <p className="cg-hint">
+            {pass.length > 0 && !largoOk ? `Un poco más largo: mínimo ${CONTRASENA_MIN} caracteres.`
+              : pass2.length > 0 && pass !== pass2 ? "No coinciden."
+              : "Una frase que recuerdes vale más que una palabra rara. Tu gestor de contraseñas también puede guardarlo."}
+          </p>
+        </>
+      )}
+      {error && <p className="cg-cuenta-error" role="alert">{error}</p>}
+      <button className="cg-btn" disabled={!listo || ocupado} onClick={enviar}>{ocupado ? "Un momento…" : textos.boton}</button>
+      <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, marginTop: 12 }}>
+        {!nueva && <button className="cg-link" onClick={() => onOlvidado(consulta.email)}>Lo he olvidado</button>}
+        <button className="cg-link" style={{ color: "var(--muted)" }} onClick={() => onVolver()}>Volver</button>
+      </div>
+    </div>
+  );
+}
+
+/* social = { consultar(token), crear(token, codigo), entrar(token, secreto, consulta) } desde App.
+   socialPendiente: token que llegó al volver de Apple/Google en la misma pestaña. */
+export function FormCuenta({ modoInicial = "entrar", onCrear, onEntrar, onRecuperar, onCancelar, textoCancelar = "Cancelar", social, socialPendiente }) {
   const [modo, setModo] = useState(modoInicial);
+  const [esperando, setEsperando] = useState(null); // "apple" | "google" mientras está su ventana
+  const [conSocial, setConSocial] = useState(null);  // { token, consulta } tras volver de Apple/Google
+  const intento = useRef(0);
   const [email, setEmail] = useState("");
   const [pass, setPass] = useState("");
   const [pass2, setPass2] = useState("");
@@ -74,7 +160,50 @@ export function FormCuenta({ modoInicial = "entrar", onCrear, onEntrar, onRecupe
 
   // la sesión no se activa hasta que confirma que ha guardado el código: si no, la pantalla del código
   // desaparecería al instante (el apartado pasa a "cuenta activa")
+  const continuarCon = async (token) => {
+    const mio = ++intento.current;
+    setError(""); setOcupado(true);
+    try {
+      const consulta = await social.consultar(token);
+      if (mio === intento.current) { setConSocial({ token, consulta }); setPass(""); setPass2(""); }
+    } catch (e) {
+      if (mio === intento.current) setError(mensajeError(e));
+    } finally {
+      if (mio === intento.current) { setOcupado(false); setEsperando(null); }
+    }
+  };
+  const tocarSocial = async (provider) => {
+    const mio = ++intento.current;
+    setError(""); setEsperando(provider);
+    try {
+      const token = await conseguirToken(provider);
+      if (mio !== intento.current) return;
+      await continuarCon(token);
+    } catch (e) {
+      if (mio !== intento.current) return;
+      setEsperando(null);
+      if (e?.codigo !== "cancelado") setError(mensajeError(e));
+    }
+  };
+  // vuelta de Apple/Google en la misma pestaña (el navegador bloqueó la ventana)
+  useEffect(() => { if (socialPendiente && social) continuarCon(socialPendiente); }, [socialPendiente]);
+
   if (codigoNuevo) return <MostrarCodigo codigo={codigoNuevo.codigo} onListo={() => { codigoNuevo.terminar(); onCancelar?.("listo"); }} />;
+
+  if (esperando) {
+    return (
+      <div className="cg-cuenta-form">
+        <h3 style={{ fontSize: 17, fontWeight: 700, margin: "0 0 4px" }}>Esperando a {NOMBRE[esperando]}…</h3>
+        <p className="cg-hint" style={{ marginBottom: 14 }}>Termina en la ventana que se ha abierto. Aquí te esperamos.</p>
+        <button className="cg-link" onClick={() => { intento.current++; setEsperando(null); setOcupado(false); }}>Cancelar</button>
+      </div>
+    );
+  }
+  if (conSocial) {
+    return <PasoSocial {...conSocial} social={social} onCodigoNuevo={setCodigoNuevo}
+      onVolver={(err) => { setConSocial(null); setError(err ? mensajeError(err) : ""); }}
+      onOlvidado={(email) => { setConSocial(null); setEmail(email); setModo("recuperar"); setError(""); }} />;
+  }
 
   const largoOk = pass.length >= CONTRASENA_MIN;
   const coincide = pass === pass2;
@@ -106,6 +235,19 @@ export function FormCuenta({ modoInicial = "entrar", onCrear, onEntrar, onRecupe
     <div className="cg-cuenta-form" onKeyDown={(e) => e.key === "Enter" && enviar()}>
       <h3 style={{ fontSize: 17, fontWeight: 700, margin: "0 0 4px" }}>{titulo}</h3>
       <p className="cg-hint" style={{ marginBottom: 14 }}>{intro}</p>
+      {social && modo !== "recuperar" && (socialDisponible("apple") || socialDisponible("google")) && (
+        <div className="cg-social">
+          {socialDisponible("apple") && (
+            <button className="cg-social-btn apple" disabled={ocupado} onClick={() => tocarSocial("apple")}>
+              {esApple() && <span aria-hidden="true" className="cg-social-logo">{"\uF8FF"}</span>}Continuar con Apple
+            </button>
+          )}
+          {socialDisponible("google") && (
+            <button className="cg-social-btn google" disabled={ocupado} onClick={() => tocarSocial("google")}>Continuar con Google</button>
+          )}
+          <p className="cg-social-o"><span>o con tu email</span></p>
+        </div>
+      )}
       <Campo id="cg-cuenta-email" etiqueta="Email" type="email" autoComplete="email" inputMode="email"
         value={email} onChange={(e) => setEmail(e.target.value)} />
       {modo === "recuperar" && (
@@ -145,15 +287,15 @@ export function FormCuenta({ modoInicial = "entrar", onCrear, onEntrar, onRecupe
 }
 
 /* apartado de Ajustes */
-export function AjustesCuenta({ sesion, estado, onCrear, onEntrar, onRecuperar, onSalir, onBorrar, onSincronizar }) {
-  const [abierto, setAbierto] = useState(null); // null | "crear" | "entrar" | "borrar"
+export function AjustesCuenta({ sesion, estado, onCrear, onEntrar, onRecuperar, onSalir, onBorrar, onSincronizar, social, socialPendiente }) {
+  const [abierto, setAbierto] = useState(socialPendiente ? "entrar" : null); // null | "crear" | "entrar" | "borrar"
   const [passBorrar, setPassBorrar] = useState("");
   const [errorBorrar, setErrorBorrar] = useState("");
 
   if (!sesion) {
     if (abierto) {
       return <FormCuenta modoInicial={abierto} onCrear={onCrear} onEntrar={onEntrar} onRecuperar={onRecuperar}
-        onCancelar={() => setAbierto(null)} />;
+        social={social} socialPendiente={socialPendiente} onCancelar={() => setAbierto(null)} />;
     }
     return (
       <div className="cg-cuenta">
@@ -177,6 +319,7 @@ export function AjustesCuenta({ sesion, estado, onCrear, onEntrar, onRecuperar, 
   return (
     <div className="cg-cuenta">
       <p style={{ fontSize: 15, fontWeight: 600, margin: "0 0 2px" }}>{sesion.email}</p>
+      {sesion.proveedor && <p className="cg-hint" style={{ margin: "0 0 2px" }}>Entras con {NOMBRE[sesion.proveedor]} y tu código de Dineriko</p>}
       <p className="cg-hint" aria-live="polite">{textoEstado}</p>
       {abierto === "borrar" ? (
         <div className="cg-cuenta-borrar">
@@ -184,7 +327,7 @@ export function AjustesCuenta({ sesion, estado, onCrear, onEntrar, onRecuperar, 
             Se borra la cuenta y todo lo guardado en el servidor. Lo que hay en este dispositivo se queda.
             No hay vuelta atrás.
           </p>
-          <Campo id="cg-borrar-pass" etiqueta="Tu contraseña, para confirmar" type="password" autoComplete="current-password"
+          <Campo id="cg-borrar-pass" etiqueta={sesion.proveedor ? "Tu código de Dineriko, para confirmar" : "Tu contraseña, para confirmar"} type="password" autoComplete="current-password"
             value={passBorrar} onChange={(e) => setPassBorrar(e.target.value)} />
           {errorBorrar && <p className="cg-cuenta-error" role="alert">{errorBorrar}</p>}
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>

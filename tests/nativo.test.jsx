@@ -6,7 +6,7 @@ import { act } from "react";
 /* simulacro del iPhone: Capacitor dice "nativo" y los plugins guardan en memoria */
 const llavero = new Map();
 const llamadas = { share: [], ficheros: [], notis: [], cancel: 0, bioCancelar: false };
-vi.mock("@capacitor/core", () => ({ Capacitor: { isNativePlatform: () => true } }));
+vi.mock("@capacitor/core", () => ({ Capacitor: { isNativePlatform: () => true, getPlatform: () => "ios" }, registerPlugin: () => ({}) }));
 vi.mock("@capgo/capacitor-native-biometric", () => ({
   AccessControl: { NONE: 0, BIOMETRY_CURRENT_SET: 1 },
   NativeBiometric: {

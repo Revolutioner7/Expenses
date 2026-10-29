@@ -6,7 +6,7 @@ import { crearCuenta, entrarCuenta, sincronizar, recuperarConCodigo, borrarCuent
 
 const BASE = process.env.BASE || "http://localhost:8799";
 // base de datos local limpia en cada prueba
-execSync(`npx wrangler d1 execute dineriko --local --command "DELETE FROM items; DELETE FROM sessions; DELETE FROM users; DELETE FROM login_attempts;" 2>/dev/null`);
+execSync(`npx wrangler d1 execute dineriko --local --command "DELETE FROM identities; DELETE FROM items; DELETE FROM sessions; DELETE FROM users; DELETE FROM login_attempts;" 2>/dev/null`);
 const email = `prueba${Date.now()}@ejemplo.com`;
 const clave = "una contraseña larga de prueba";
 const ok = (m) => console.log("✓ " + m);

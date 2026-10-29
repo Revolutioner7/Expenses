@@ -15,7 +15,13 @@
      GET  /sync?since=N                                    → { rev, items, more }
      POST /sync            { changes: [{ k, v, d }] }      → { rev }
      POST /account/delete  { authKey }                     → {}
+
+   Con Apple o Google, register y login aceptan { provider, idToken, nonce } en lugar del email,
+   y authKey sale del "código de Dineriko" que elige el usuario (igual que de una contraseña):
+     POST /auth/social     { provider, idToken, nonce }    → { estado: nueva|existe|vincular, email, salt?, iter? }
+     POST /auth/apple/callback (formulario que manda Apple en la web) → redirige a dineriko.com/oauth.html
 */
+import { verificarToken, FalloIdentidad, PROVEEDORES } from "./identidad.js";
 
 const DIA = 86400000;
 const SESION_MS = 365 * DIA;
@@ -133,6 +139,53 @@ async function anotarFallo(env, email) {
 }
 const limpiarFallos = (env, email) => env.DB.prepare("DELETE FROM login_attempts WHERE email = ?").bind(email).run();
 
+/* ── Apple y Google ── */
+async function identidadDe(env, b) {
+  if (!PROVEEDORES.includes(b.provider)) throw new Fallo(400, "proveedor");
+  try {
+    return { provider: b.provider, ...(await verificarToken(env, b.provider, b.idToken, b.nonce)) };
+  } catch (e) {
+    if (!(e instanceof FalloIdentidad)) throw e;
+    if (e.motivo === "proveedor-sin-configurar" || e.motivo === "jwks") throw new Fallo(503, "proveedor-no-disponible");
+    throw new Fallo(401, "identidad");
+  }
+}
+/* la cuenta de esa persona: primero por su identidad de Apple/Google y, si aún no está unida, por su email verificado */
+async function usuarioDeIdentidad(env, id, campos) {
+  const porId = await env.DB.prepare(`SELECT ${campos.map((c) => "u." + c).join(", ")} FROM identities i JOIN users u ON u.id = i.user_id WHERE i.provider = ? AND i.sub = ?`)
+    .bind(id.provider, id.sub).first();
+  if (porId) return { u: porId, unida: true };
+  if (!id.email) return { u: null, unida: false };
+  const porEmail = await env.DB.prepare(`SELECT ${campos.join(", ")} FROM users WHERE email = ?`).bind(id.email).first();
+  return { u: porEmail, unida: false };
+}
+const unirIdentidad = (env, id, userId) => env.DB.prepare("INSERT OR IGNORE INTO identities (provider, sub, user_id, created_at) VALUES (?, ?, ?, ?)")
+  .bind(id.provider, id.sub, userId, ahora());
+
+async function social(req, env) {
+  const id = await identidadDe(env, await leerJson(req));
+  const { u, unida } = await usuarioDeIdentidad(env, id, ["email", "kdf_salt", "kdf_iter"]);
+  if (u) return { estado: unida ? "existe" : "vincular", email: u.email, salt: u.kdf_salt, iter: u.kdf_iter };
+  if (!id.email) throw new Fallo(400, "sin-email");
+  return { estado: "nueva", email: id.email };
+}
+
+/* Apple, en la web, devuelve el token con un formulario (POST) a esta dirección. Se reenvía a la app
+   dentro del fragmento (#), que no llega a ningún servidor. El estado lleva el origen de la app. */
+async function callbackApple(req, env) {
+  const f = await req.formData().catch(() => null);
+  const estado = String(f?.get("state") || "");
+  const idToken = String(f?.get("id_token") || "");
+  let origen = "";
+  try { origen = new TextDecoder().decode(Uint8Array.from(atob(estado.split(".")[2].replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0))); } catch (e) {}
+  const permitidos = (env.ALLOWED_ORIGINS || "").split(",").map((s) => s.trim()).filter((o) => o.startsWith("https://") || o.startsWith("http://localhost"));
+  if (!permitidos.includes(origen) && !/^http:\/\/(localhost|127\.0\.0\.1)(:\d+)?$/.test(origen)) {
+    return new Response("Origen no permitido", { status: 400 });
+  }
+  const frag = new URLSearchParams({ provider: "apple", state: estado, ...(idToken ? { id_token: idToken } : { error: String(f?.get("error") || "cancelado") }) });
+  return new Response(null, { status: 303, headers: { Location: `${origen}/oauth.html#${frag}`, "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" } });
+}
+
 /* ── rutas ── */
 async function prelogin(req, env) {
   const { email } = await leerJson(req);
@@ -146,30 +199,47 @@ async function prelogin(req, env) {
 
 async function registrar(req, env) {
   const b = await leerJson(req);
-  const e = normalizarEmail(b.email);
   if (!esB64(b.salt, 16, 64) || !esB64(b.authKey, 40, 64) || !esB64(b.recAuth, 40, 64)) throw new Fallo(400, "datos");
   validarIter(b.iter);
   const wrapped = validarEnvuelta(b.wrapped);
   if (!wrapped.pass || !wrapped.rec) throw new Fallo(400, "wrapped");
+  // con Apple o Google, el email es el que ellos confirman, no uno escrito a mano
+  const ident = b.provider ? await identidadDe(env, b) : null;
+  if (ident && !ident.email) throw new Fallo(400, "sin-email");
+  const e = ident ? normalizarEmail(ident.email) : normalizarEmail(b.email);
+  if (ident) {
+    const ya = await env.DB.prepare("SELECT 1 FROM identities WHERE provider = ? AND sub = ?").bind(ident.provider, ident.sub).first();
+    if (ya) throw new Fallo(409, "email-en-uso");
+  }
   const existe = await env.DB.prepare("SELECT id FROM users WHERE email = ?").bind(e).first();
   if (existe) throw new Fallo(409, "email-en-uso");
   const id = b64url(aleatorio(16));
   const t = ahora();
-  await env.DB.prepare("INSERT INTO users (id, email, kdf_salt, kdf_iter, auth_hash, rec_hash, wrapped, rev, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)")
-    .bind(id, e, b.salt, b.iter, await hmac(env.PEPPER, b.authKey), await hmac(env.PEPPER, b.recAuth), JSON.stringify(wrapped), t, t).run();
-  return { token: await crearSesion(env, id, req) };
+  const alta = env.DB.prepare("INSERT INTO users (id, email, kdf_salt, kdf_iter, auth_hash, rec_hash, wrapped, rev, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)")
+    .bind(id, e, b.salt, b.iter, await hmac(env.PEPPER, b.authKey), await hmac(env.PEPPER, b.recAuth), JSON.stringify(wrapped), t, t);
+  await env.DB.batch(ident ? [alta, unirIdentidad(env, ident, id)] : [alta]);
+  return { token: await crearSesion(env, id, req), email: e };
 }
 
 async function entrar(req, env) {
   const b = await leerJson(req);
-  const e = normalizarEmail(b.email);
   if (!esB64(b.authKey, 40, 64)) throw new Fallo(400, "datos");
+  let u, e, ident = null, unida = true;
+  if (b.provider) {
+    ident = await identidadDe(env, b);
+    ({ u, unida } = await usuarioDeIdentidad(env, ident, ["id", "email", "auth_hash", "wrapped"]));
+    e = u?.email || `${ident.provider}:${ident.sub}`; // los intentos fallidos se cuentan por cuenta
+  } else {
+    e = normalizarEmail(b.email);
+    u = await env.DB.prepare("SELECT id, email, auth_hash, wrapped FROM users WHERE email = ?").bind(e).first();
+  }
   await comprobarBloqueo(env, e);
-  const u = await env.DB.prepare("SELECT id, auth_hash, wrapped FROM users WHERE email = ?").bind(e).first();
   const prueba = await hmac(env.PEPPER, b.authKey);
   if (!u || !igual(prueba, u.auth_hash)) { await anotarFallo(env, e); throw new Fallo(401, "credenciales"); }
   await limpiarFallos(env, e);
-  return { token: await crearSesion(env, u.id, req), wrapped: JSON.parse(u.wrapped) };
+  // primera vez con Apple/Google en una cuenta que ya existía con su email: queda unida para la próxima
+  if (ident && !unida) await unirIdentidad(env, ident, u.id).run();
+  return { token: await crearSesion(env, u.id, req), wrapped: JSON.parse(u.wrapped), email: u.email };
 }
 
 /* contraseña olvidada, con el código de recuperación: el dispositivo ya ha abierto la llave de datos
@@ -265,6 +335,7 @@ async function borrarCuenta(req, env) {
   await env.DB.batch([
     env.DB.prepare("DELETE FROM items WHERE user_id = ?").bind(userId),
     env.DB.prepare("DELETE FROM sessions WHERE user_id = ?").bind(userId),
+    env.DB.prepare("DELETE FROM identities WHERE user_id = ?").bind(userId),
     env.DB.prepare("DELETE FROM users WHERE id = ?").bind(userId),
   ]);
   return {};
@@ -274,6 +345,7 @@ const RUTAS = {
   "POST /auth/prelogin": prelogin,
   "POST /auth/register": registrar,
   "POST /auth/login": entrar,
+  "POST /auth/social": social,
   "POST /auth/recover": recuperar,
   "POST /auth/logout": salir,
   "POST /auth/password": cambiarContrasena,
@@ -289,6 +361,9 @@ export default {
     if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: cors });
     const url = new URL(req.url);
     const ruta = RUTAS[`${req.method} ${url.pathname}`];
+    if (req.method === "POST" && url.pathname === "/auth/apple/callback") {
+      try { return await callbackApple(req, env); } catch (e) { console.error(e); return new Response("Error", { status: 500 }); }
+    }
     if (!ruta) return json({ error: "no-existe" }, 404, cors);
     if (!env.PEPPER || env.PEPPER.length < 32) return json({ error: "servidor-sin-configurar" }, 500, cors);
     try {

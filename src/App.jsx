@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 
 import { API_URL, cuentasDisponibles } from "./constants.js";
-import { crearCuenta, entrarCuenta, recuperarConCodigo, salirCuenta, borrarCuenta, sincronizar } from "./lib/cuenta.js";
+import { crearCuenta, entrarCuenta, recuperarConCodigo, salirCuenta, borrarCuenta, sincronizar, consultarSocial, crearCuentaSocial, entrarCuentaSocial } from "./lib/cuenta.js";
+import { pendienteSocial } from "./lib/social.js";
 import { AjustesCuenta } from "./components/cuenta.jsx";
 import { STORE_KEY, ONBOARD_KEY, WORKER_URL, APP_VERSION, APP_NAME, BUCKETS, DEFAULT_CATEGORIES, DEFAULT_BANCOS } from "./constants.js";
 import { store } from "./lib/storage.js";
@@ -243,6 +244,18 @@ export default function App() {
   };
   const cuentaEntrar = async (email, pass) => ponerSesion(await entrarCuenta(API_URL, email, pass));
   const cuentaRecuperar = async (email, codigo, pass) => ponerSesion(await recuperarConCodigo(API_URL, email, codigo, pass));
+  /* entrar con Apple o Google: el token lo consigue FormCuenta; aquí se habla con el servidor */
+  const cuentaSocial = useMemo(() => ({
+    consultar: (token) => consultarSocial(API_URL, token),
+    crear: async (token, codigoDineriko) => {
+      const { sesion, codigo } = await crearCuentaSocial(API_URL, token, codigoDineriko);
+      return { codigo, terminar: () => ponerSesion(sesion) };
+    },
+    entrar: async (token, secreto, consulta) => ponerSesion(await entrarCuentaSocial(API_URL, token, secreto, consulta)),
+  }), []);
+  // vuelta de Apple/Google en la misma pestaña: se lee una sola vez al arrancar
+  const [socialPendiente] = useState(() => (typeof window !== "undefined" ? pendienteSocial() : null));
+  useEffect(() => { if (socialPendiente) { setTab("ajustes"); setGrupoAbierto("cuenta"); } }, []);
   const quitarSesion = () => setData((d) => { const { _cuenta, ...resto } = d || {}; return resto; });
   const cuentaSalir = async () => {
     if (!window.confirm("Cierras la sesión en este dispositivo. Tus datos se quedan aquí y en tu cuenta. ¿Seguir?")) return;
@@ -1505,7 +1518,8 @@ export default function App() {
 
   if (onboard.status === "install" || onboard.status === "consent") {
     return <Onboarding startStep={onboard.status} onDone={finishOnboarding} bancos={bancos} masUsadoBancoId={usoFormaPago.masUsadoBancoId} onAddBanco={saveBanco}
-      cuentas={cuentasDisponibles()} onEntrarCuenta={cuentaEntrar} onRecuperarCuenta={cuentaRecuperar} />;
+      cuentas={cuentasDisponibles()} onEntrarCuenta={cuentaEntrar} onRecuperarCuenta={cuentaRecuperar}
+      social={cuentaSocial} socialPendiente={socialPendiente} />;
   }
 
   if (locked) {
@@ -2345,7 +2359,8 @@ export default function App() {
                 <AjustesCuenta sesion={data._cuenta || null}
                   estado={data._cuenta?.caducada ? { fase: "caducada" } : estadoSync}
                   onCrear={cuentaCrear} onEntrar={cuentaEntrar} onRecuperar={cuentaRecuperar}
-                  onSalir={cuentaSalir} onBorrar={cuentaBorrar} onSincronizar={sincronizarAhora} />
+                  onSalir={cuentaSalir} onBorrar={cuentaBorrar} onSincronizar={sincronizarAhora}
+                  social={cuentaSocial} socialPendiente={data._cuenta ? null : socialPendiente} />
               </GrupoAjustes>
             )}
 

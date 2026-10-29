@@ -277,4 +277,13 @@ label.cg-lab{display:block;font-family:var(--mono);font-size:10px;letter-spacing
 .cg-codigo{font-family:var(--mono);font-size:17px;letter-spacing:.06em;line-height:1.6;background:#F4F8F5;border:1px dashed var(--line);
   border-radius:12px;padding:14px;text-align:center;word-break:break-word;user-select:all;-webkit-user-select:all;margin:0 0 10px;}
 .cg-cuenta-error{color:var(--red);font-size:13.5px;margin:0 0 10px;}
+/* entrar con Apple / Google: botones con el aspecto que piden sus guías (Apple negro, Google blanco con borde) */
+.cg-social{display:flex;flex-direction:column;gap:8px;margin-bottom:4px;}
+.cg-social-btn{width:100%;padding:12px;border-radius:11px;font-family:-apple-system,system-ui,sans-serif;font-weight:600;font-size:15px;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;}
+.cg-social-btn.apple{background:#000;color:#fff;border:1px solid #000;}
+.cg-social-btn.google{background:#fff;color:#1f1f1f;border:1px solid #747775;}
+.cg-social-btn[disabled]{opacity:.5;cursor:not-allowed;}
+.cg-social-logo{font-size:17px;line-height:1;margin-top:-2px;}
+.cg-social-o{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12.5px;margin:8px 0 10px;}
+.cg-social-o::before,.cg-social-o::after{content:"";flex:1;height:1px;background:var(--line);}
 .cg-link[disabled]{opacity:.45;cursor:not-allowed;}

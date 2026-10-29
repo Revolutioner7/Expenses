@@ -44,6 +44,10 @@ self.addEventListener('fetch', (e) => {
   if (req.method !== 'GET') return;
 
   // navegación: primero la red, y si no hay, la copia guardada
+  // (solo la app en sí: privacidad.html u oauth.html no deben guardarse como si fueran la app)
+  const ruta = new URL(req.url).pathname;
+  const esApp = ruta.endsWith('/') || ruta.endsWith('/index.html');
+  if (req.mode === 'navigate' && !esApp) return;
   if (req.mode === 'navigate') {
     e.respondWith(
       conLimite(req, 1500)
