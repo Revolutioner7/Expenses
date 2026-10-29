@@ -1,0 +1,72 @@
+# Publica el servidor de cuentas (Cloudflare Worker + base de datos D1 fijada a la UE).
+# Se lanza solo al subir cambios de server/ a la rama beta, o a mano desde Actions.
+# Secretos: CLOUDFLARE_API_TOKEN y CLOUDFLARE_ACCOUNT_ID.
+name: Servidor · Cloudflare
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [beta]
+    paths:
+      - "server/**"
+      - ".github/workflows/server-deploy.yml"
+
+concurrency:
+  group: server-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: server
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Comprobar que las claves de Cloudflare están puestas
+        run: |
+          [ -n "$CLOUDFLARE_API_TOKEN" ] || { echo "::error::Falta el secreto CLOUDFLARE_API_TOKEN"; exit 1; }
+          [ -n "$CLOUDFLARE_ACCOUNT_ID" ] || { echo "::error::Falta el secreto CLOUDFLARE_ACCOUNT_ID"; exit 1; }
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - run: npm ci
+
+      - name: Base de datos (se crea la primera vez, con los datos en la UE)
+        run: |
+          id=$(npx wrangler d1 list --json 2>/dev/null | jq -r '.[] | select(.name=="dineriko") | .uuid' | head -1)
+          if [ -z "$id" ]; then
+            echo "Creando la base de datos dineriko en la jurisdicción UE…"
+            npx wrangler d1 create dineriko --jurisdiction eu
+            id=$(npx wrangler d1 list --json | jq -r '.[] | select(.name=="dineriko") | .uuid' | head -1)
+          fi
+          [ -n "$id" ] || { echo "::error::No se ha podido crear ni encontrar la base de datos"; exit 1; }
+          sed -i "s/^database_id = .*/database_id = \"$id\"/" wrangler.toml
+          npx wrangler d1 migrations apply dineriko --remote
+
+      - name: Publicar el servidor
+        run: npx wrangler deploy 2>&1 | tee deploy.log
+
+      - name: Secreto del servidor (solo la primera vez; NUNCA se cambia, o nadie podría entrar)
+        run: |
+          if npx wrangler secret list --format json 2>/dev/null | jq -e '.[] | select(.name=="PEPPER")' >/dev/null; then
+            echo "PEPPER ya existe, no se toca."
+          else
+            openssl rand -base64 48 | tr -d '\n' | npx wrangler secret put PEPPER
+            echo "::notice::Se ha creado el secreto PEPPER del servidor."
+          fi
+
+      - name: Comprobar que responde
+        run: |
+          url=$(grep -oE "https://[a-z0-9.-]+\.workers\.dev" deploy.log | head -1)
+          echo "Dirección del servidor: $url"
+          echo "::notice::Servidor publicado en $url"
+          for i in 1 2 3 4 5 6; do curl -fsS "$url/health" && exit 0; sleep 5; done
+          echo "::error::El servidor no responde en $url/health"; exit 1
