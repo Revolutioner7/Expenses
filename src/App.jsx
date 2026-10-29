@@ -20,6 +20,7 @@ import { AddExpense, IncomeCard, Donut, CategoryDetail } from "./components/mes.
 import { MonthCompare, Split503020, Forecast } from "./components/resumen.jsx";
 import { isAppInstalled, Onboarding } from "./components/onboarding.jsx";
 import { LockScreen, SecuritySheet } from "./components/lock.jsx";
+import { AvisoPrivacidad } from "./components/privacidad.jsx";
 
 export default function App() {
   const [data, setData] = useState(null);
@@ -2832,72 +2833,7 @@ export default function App() {
 
       {sheet?.type === "privacidad" && (
         <Sheet title="Aviso de Privacidad" onClose={() => setSheet(null)}>
-          <p className="cg-hint" style={{ marginTop: 0 }}>Última actualización: 20 de septiembre de 2026</p>
-
-          <h4 style={{ fontSize: 13, fontWeight: 700, margin: "16px 0 4px" }}>1. Responsable del tratamiento</h4>
-          <p className="cg-hint">
-            El responsable del tratamiento es Rodrigo E. Harmat Gainza, Barcelona, España.
-            Correo electrónico: <a href="mailto:rodrigoharmat@gmail.com">rodrigoharmat@gmail.com</a>.
-          </p>
-
-          <h4 style={{ fontSize: 13, fontWeight: 700, margin: "16px 0 4px" }}>2. Qué datos trata {APP_NAME}</h4>
-          <p className="cg-hint">
-            Actualmente, {APP_NAME} no recoge, transmite ni almacena en ningún servidor datos
-            personales de sus usuarios. Los datos que introduces en la aplicación, incluidos gastos,
-            ingresos, categorías y metas de ahorro, se almacenan únicamente en el dispositivo del
-            usuario y permanecen cifrados mediante AES-GCM.
-          </p>
-          <p className="cg-hint">
-            {APP_NAME} no tiene cuentas de usuario ni actualmente dispone de un sistema de
-            sincronización o almacenamiento remoto.
-          </p>
-          <p className="cg-hint">
-            El acceso mediante Face ID, Touch ID u otros sistemas biométricos se realiza a través
-            del mecanismo de autenticación del propio dispositivo, mediante WebAuthn. {APP_NAME} no
-            recibe ni almacena los datos biométricos del usuario, y estos no salen del dispositivo.
-          </p>
-          <p className="cg-hint">Asimismo, {APP_NAME}:</p>
-          <ul className="cg-hint" style={{ margin: "0 0 12px", paddingLeft: 18 }}>
-            <li>No utiliza cookies de seguimiento.</li>
-            <li>No utiliza servicios de analítica de terceros.</li>
-            <li>No utiliza píxeles publicitarios ni tecnologías similares.</li>
-            <li>No comparte datos personales con terceros.</li>
-          </ul>
-
-          <h4 style={{ fontSize: 13, fontWeight: 700, margin: "16px 0 4px" }}>3. Base jurídica</h4>
-          <p className="cg-hint">
-            Dado que {APP_NAME} actualmente no recibe ni almacena datos personales de los usuarios
-            en sus propios sistemas, no existe actualmente un tratamiento de datos personales remoto
-            que requiera una base jurídica específica conforme al RGPD. Los datos financieros
-            almacenados localmente en el dispositivo permanecen bajo el control del usuario y no son
-            accesibles por {APP_NAME}.
-          </p>
-
-          <h4 style={{ fontSize: 13, fontWeight: 700, margin: "16px 0 4px" }}>4. Derechos del usuario</h4>
-          <p className="cg-hint">
-            El RGPD reconoce, entre otros, los derechos de acceso, rectificación, supresión,
-            limitación del tratamiento, oposición y portabilidad de los datos personales, así como
-            el derecho a no ser objeto de determinadas decisiones automatizadas. En la situación
-            actual de {APP_NAME}, no disponemos de datos personales almacenados en nuestros
-            servidores que permitan atender, por ejemplo, una solicitud de rectificación o supresión.
-          </p>
-          <p className="cg-hint">
-            Para cualquier consulta relacionada con la privacidad o el ejercicio de derechos, puedes
-            contactar con nosotros en <a href="mailto:rodrigoharmat@gmail.com">rodrigoharmat@gmail.com</a>.
-            También tienes derecho a presentar una reclamación ante la Agencia Española de Protección
-            de Datos (AEPD) si consideras que se han vulnerado tus derechos.
-          </p>
-
-          <h4 style={{ fontSize: 13, fontWeight: 700, margin: "16px 0 4px" }}>5. Cambios futuros</h4>
-          <p className="cg-hint" style={{ marginBottom: 0 }}>
-            {APP_NAME} podrá incorporar en el futuro funcionalidades que requieran el tratamiento de
-            datos en servidores, por ejemplo, sincronización entre dispositivos, copias de seguridad
-            o cuentas de usuario. Si esto ocurre, este Aviso de Privacidad será actualizado antes de
-            que dicho tratamiento resulte aplicable, indicando qué datos se tratarán, con qué
-            finalidad, durante cuánto tiempo, sobre qué base jurídica y cualquier otra información
-            exigida por la normativa aplicable. Los usuarios serán informados de los cambios
-            relevantes mediante los medios disponibles en ese momento.
-          </p>
+          <AvisoPrivacidad />
         </Sheet>
       )}
 

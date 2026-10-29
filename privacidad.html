@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Aviso de Privacidad · Dineriko</title>
+<meta name="description" content="Cómo trata Dineriko tus datos: sin cuenta no salen de tu dispositivo; con cuenta, van cifrados de extremo a extremo.">
+<link rel="icon" href="./icon-192.png">
+<style>
+  @font-face{font-family:'Karla';src:url('./font-karla.woff2') format('woff2');font-weight:200 800;font-display:swap;}
+  @font-face{font-family:'Bricolage Grotesque';src:url('./font-bricolage.woff2') format('woff2');font-weight:200 800;font-display:swap;}
+  :root{--ink:#101A18;--muted:#5F6F68;--bg:#ECF6EF;--card:#FFFFFF;--line:#DCE8E0;--link:#2F7FAE;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Karla',system-ui,-apple-system,sans-serif;font-size:16px;line-height:1.6;}
+  main{max-width:720px;margin:0 auto;padding:32px 16px 64px;}
+  header{display:flex;align-items:center;gap:12px;margin-bottom:24px}
+  header img{width:44px;height:44px;border-radius:12px}
+  header a{color:inherit;text-decoration:none;font-family:'Bricolage Grotesque',system-ui,sans-serif;font-weight:700;font-size:20px}
+  h1{font-family:'Bricolage Grotesque',system-ui,sans-serif;font-size:clamp(28px,6vw,38px);line-height:1.15;margin:0 0 6px}
+  h2{font-family:'Bricolage Grotesque',system-ui,sans-serif;font-size:20px;margin:32px 0 8px}
+  .fecha{color:var(--muted);margin:0 0 24px}
+  .resumen{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 20px;}
+  .resumen strong{display:block;margin-bottom:4px}
+  ul{padding-left:20px} li{margin-bottom:6px}
+  a{color:var(--link)}
+  footer{margin-top:48px;color:var(--muted);font-size:14px}
+</style>
+</head>
+<body>
+<main>
+  <header><img src="./icon-192.png" alt=""><a href="./">Dineriko</a></header>
+  <h1>Aviso de Privacidad</h1>
+  <p class="fecha">Última actualización: 29 de octubre de 2026</p>
+  <div class="resumen"><strong>En resumen</strong><ul><li>Si usas Dineriko sin cuenta, tus datos no salen de tu dispositivo.</li><li>Si creas una cuenta (es opcional), tus gastos se guardan en nuestro servidor cifrados con una llave que solo tienes tú. No podemos leerlos.</li><li>De ti solo conocemos el email con el que creas la cuenta.</li><li>Sin publicidad, sin analítica de terceros, sin cookies de seguimiento y sin venta de datos.</li></ul></div>
+  <section><h2>1. Quién es el responsable</h2><p>El responsable del tratamiento es Rodrigo Eduard Harmat Gainza, con domicilio a efectos de contacto en Barcelona (España). Para cualquier cuestión sobre privacidad puedes escribir a <a href="mailto:rodrigoharmat@gmail.com">rodrigoharmat@gmail.com</a>.</p></section>
+  <section><h2>2. Si usas Dineriko sin cuenta</h2><p>Todo lo que anotas (gastos, ingresos, categorías, fijos, metas y ajustes) se guarda solo en tu dispositivo. Si activas la protección con contraseña, se guarda además cifrado con AES-GCM.</p>
+<p>El email que puedes escribir, de forma opcional, la primera vez que abres la app se queda guardado en tu dispositivo. Hoy no se envía a ningún sitio.</p>
+<p>Face ID, Touch ID y el resto de sistemas biométricos los gestiona tu propio dispositivo. Dineriko nunca recibe tus datos biométricos.</p>
+<p>Las copias de seguridad que creas son archivos tuyos: se guardan donde tú elijas y no pasan por nuestros sistemas.</p></section>
+  <section><h2>3. Si creas una cuenta</h2><p>La cuenta es opcional. Sirve para que tus datos no se pierdan si cambias o pierdes el móvil, y para usarlos en varios dispositivos.</p>
+<p>Qué datos tratamos:</p>
+<ul><li>Tu email, para identificar tu cuenta.</li><li>Una prueba derivada de tu contraseña, que sirve para comprobar que eres tú. Tu contraseña nunca sale de tu dispositivo y no la conocemos.</li><li>Tu llave de datos, guardada cifrada con tu contraseña y, por separado, con tu código de recuperación. Sin una de las dos no se puede abrir.</li><li>Tus datos de la app, cifrados de extremo a extremo en tu dispositivo antes de enviarse. Esto incluye importes, conceptos, fechas y categorías, e incluso el nombre interno de cada registro, de modo que no podemos saber ni cuántos gastos tienes en un mes.</li><li>Datos técnicos de funcionamiento: la fecha de alta y del último cambio, las sesiones abiertas (fecha y tipo de navegador o dispositivo) y los intentos fallidos de entrar (email y hora), que se borran al entrar correctamente o pasados 15 minutos.</li></ul>
+<p>Lo que no podemos ver: tu contraseña, tu código de recuperación ni el contenido de tus datos. Por eso tampoco podemos recuperarlos si pierdes las dos cosas.</p>
+<p>Para qué y con qué base legal: para prestarte la cuenta y sincronizar tus datos entre dispositivos, porque es necesario para darte el servicio que pides (artículo 6.1.b del RGPD); y para proteger las cuentas frente a accesos no autorizados, por nuestro interés legítimo en la seguridad del servicio (artículo 6.1.f del RGPD).</p>
+<p>Cuánto tiempo: mientras tengas la cuenta. Las sesiones caducan tras un año sin uso. Si borras la cuenta, sus datos se eliminan al momento del servidor y pueden quedar en las copias automáticas de restauración de la base de datos durante un máximo de 30 días, tras los cuales desaparecen.</p>
+<p>Si olvidas la contraseña, puedes elegir una nueva con tu código de recuperación. Si en el futuro ofrecemos otra forma de recuperar la cuenta, te lo explicaremos antes y podrás decidir si la quieres.</p></section>
+  <section><h2>4. Proveedores que intervienen</h2><ul><li>Cloudflare, Inc. aloja el servidor de cuentas como encargado del tratamiento. La base de datos está configurada para guardarse dentro de la Unión Europea. Como Cloudflare es una empresa de Estados Unidos y las peticiones pasan por su red global, puede haber transferencias internacionales, amparadas por el Marco de Privacidad de Datos UE-EE. UU. y por las cláusulas contractuales tipo de la Comisión Europea.</li><li>GitHub, Inc. aloja la web dineriko.com. Como cualquier servidor web, recibe técnicamente la dirección IP de quien la visita para poder entregar la página.</li><li>Apple distribuye la app de iPhone a través del App Store y TestFlight, y trata los datos de esa distribución según su propia política de privacidad.</li></ul></section>
+  <section><h2>5. Lo que nunca hacemos</h2><ul><li>No mostramos publicidad ni usamos píxeles publicitarios.</li><li>No usamos analítica de terceros ni cookies de seguimiento.</li><li>No vendemos ni cedemos tus datos a nadie.</li><li>No tomamos decisiones automatizadas que te afecten.</li></ul></section>
+  <section><h2>6. Tus derechos</h2><p>Puedes pedir el acceso, la rectificación, la supresión, la limitación o la portabilidad de tus datos, u oponerte a su tratamiento, escribiendo a <a href="mailto:rodrigoharmat@gmail.com">rodrigoharmat@gmail.com</a>. Te responderemos en el plazo de un mes.</p>
+<p>Algunas cosas las puedes hacer tú directamente desde la app: borrar tu cuenta y todo lo guardado en el servidor (Ajustes → Tu cuenta → Borrar cuenta) y descargar todos tus datos en un archivo (Ajustes → Datos y privacidad → Guardar copia).</p>
+<p>Si crees que no hemos tratado bien tus datos, puedes reclamar ante la Agencia Española de Protección de Datos (<a href="https://www.aepd.es" rel="noopener">www.aepd.es</a>).</p></section>
+  <section><h2>7. Menores</h2><p>Dineriko no está pensada para menores de 14 años. Si tienes menos de 14 años, no crees una cuenta.</p></section>
+  <section><h2>8. Seguridad</h2><p>Los datos de la cuenta se cifran en tu dispositivo con AES-GCM de 256 bits, con una llave que se deriva de tu contraseña (PBKDF2 con 600.000 iteraciones). Todas las conexiones van cifradas (HTTPS) y las entradas se bloquean temporalmente tras varios intentos fallidos.</p></section>
+  <section><h2>9. Cambios en este aviso</h2><p>Si cambia la forma en que tratamos tus datos, actualizaremos este aviso antes de que el cambio se aplique y te lo indicaremos dentro de la app.</p></section>
+  <footer>Dineriko · <a href="./">dineriko.com</a></footer>
+</main>
+</body>
+</html>

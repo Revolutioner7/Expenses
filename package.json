@@ -10,7 +10,8 @@
     "build:dev": "esbuild src/main.jsx --bundle --format=iife --target=safari15 --outfile=bundle.js --sourcemap",
     "watch": "npm run build:dev -- --watch",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "privacidad": "node scripts/privacidad.mjs"
   },
   "dependencies": {
     "react": "^19.2.0",
