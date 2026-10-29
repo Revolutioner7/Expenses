@@ -1223,4 +1223,10 @@ proyectos ocupados por Reliko; Cloudflare cuesta 0 € y la cuenta ya existía).
   encargado, jurisdicción UE). Fases 2 a 4 sin empezar (Apple/Google, "Lo he perdido todo", aviso
   a quien no tiene cuenta).
 - **29 oct, noche: beta v12 publicada** (caché `dineriko-v12`): preguntas de inicio a pantalla completa con textos nuevos, y cuentas conectadas al servidor real `https://dineriko-api.rodrigoharmat.workers.dev` (prueba de humo en verde tras publicar). La estable no cambia. **Antes de pasar las cuentas a estable: Política de Privacidad nueva.**
+- **29 oct: Aviso de Privacidad nuevo publicado en la estable y en la beta (caché `dineriko-v13`).**
+  Fuente única en `src/privacidad.js`; lo pinta `src/components/privacidad.jsx` en la app y
+  `npm run privacidad` genera la página pública **https://dineriko.com/privacidad.html** (la que se
+  da al App Store). Rodrigo pidió redactarlo y publicarlo directamente; la revisión por un abogado
+  es lo primero de la lista "Si Dineriko despega" en Notion. Corregido también el texto del email
+  del inicio, que prometía avisos por email que no existen: ahora dice que se queda en el móvil.
 
