@@ -1,5 +1,6 @@
 import { todayISO } from "./utils.js";
-import { APP_NAME, PLAY_STORE_URL } from "../constants.js";
+import { APP_NAME, PLAY_STORE_URL, WEB_URL } from "../constants.js";
+import { esNativo, compartirArchivoNativo, compartirTextoNativo } from "./nativo.js";
 
 /* crea la copia de seguridad: intenta la hoja de compartir nativa primero (deja elegir
    carpeta, incluido Google Drive o iCloud Drive si están instalados); si no está disponible,
@@ -7,7 +8,9 @@ import { APP_NAME, PLAY_STORE_URL } from "../constants.js";
    si la persona canceló la hoja de compartir. */
 export async function crearCopia(data) {
   const filename = `gastos-copia-${todayISO()}.json`;
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const texto = JSON.stringify(data, null, 2);
+  if (esNativo()) return compartirArchivoNativo(filename, texto); // app de iPhone: hoja de compartir del sistema
+  const blob = new Blob([texto], { type: "application/json" });
   let hecho = false;
   if (navigator.share && navigator.canShare) {
     const file = new File([blob], filename, { type: "application/json" });
@@ -38,9 +41,11 @@ export async function crearCopia(data) {
 export async function compartirApp() {
   const esAndroid = /Android/.test(window.navigator.userAgent || "");
   const playListo = !PLAY_STORE_URL.includes("REEMPLAZA-ESTO");
-  const url = (esAndroid && playListo) ? PLAY_STORE_URL : (window.location.origin + window.location.pathname);
+  // dentro de la app de iPhone la dirección es interna (capacitor://), así que se comparte la web
+  const url = (esAndroid && playListo) ? PLAY_STORE_URL : (esNativo() ? WEB_URL : (window.location.origin + window.location.pathname));
   const nombre = APP_NAME || "esta app";
   const texto = `¿Quieres tener tus gastos al día? Prueba ${nombre}: ${url}`;
+  if (esNativo()) return { estado: await compartirTextoNativo(nombre, texto), url, texto };
   if (navigator.share) {
     try {
       // el enlace ya va dentro del texto: si además se pasa "url" aparte, iOS pega los dos y sale duplicado

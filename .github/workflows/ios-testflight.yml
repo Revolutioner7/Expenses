@@ -1,0 +1,94 @@
+# Fabrica la app de iPhone en un Mac de GitHub, la firma con la cuenta de Apple de Rodrigo
+# y la sube a TestFlight. Se lanza sola al subir cambios de la app a la rama beta, o a mano
+# desde la pestaña Actions ("Run workflow"). Las claves viven en Settings → Secrets, cifradas.
+name: iPhone · TestFlight
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [beta]
+    paths:
+      - "src/**"
+      - "ios/**"
+      - "index.html"
+      - "boot.js"
+      - "styles.css"
+      - "package.json"
+      - "package-lock.json"
+      - "capacitor.config.json"
+      - ".github/workflows/ios-testflight.yml"
+
+concurrency:
+  group: ios-testflight
+  cancel-in-progress: true
+
+jobs:
+  testflight:
+    runs-on: macos-15
+    timeout-minutes: 45
+    env:
+      ASC_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+      TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Comprobar que las claves de Apple están puestas
+        run: |
+          for v in ASC_KEY_ID ASC_ISSUER_ID TEAM_ID; do
+            if [ -z "${!v}" ]; then echo "::error::Falta el secreto de $v en Settings → Secrets and variables → Actions"; exit 1; fi
+          done
+          if [ -z "${{ secrets.APPSTORE_PRIVATE_KEY }}" ]; then echo "::error::Falta el secreto APPSTORE_PRIVATE_KEY"; exit 1; fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Instalar y pasar las pruebas
+        run: |
+          npm ci
+          npm test
+
+      - name: Compilar la web y copiarla dentro del proyecto de iPhone
+        run: |
+          npm run build
+          npm run www
+          npx cap sync ios
+
+      - name: Elegir Xcode
+        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_16*.app | sort -V | tail -1)" && xcodebuild -version
+
+      - name: Preparar la clave de App Store Connect
+        run: |
+          mkdir -p "$RUNNER_TEMP/asc"
+          printf '%s' "${{ secrets.APPSTORE_PRIVATE_KEY }}" > "$RUNNER_TEMP/asc/AuthKey_${ASC_KEY_ID}.p8"
+          sed "s/__TEAM_ID__/${TEAM_ID}/" ios/ci/ExportOptions.plist > "$RUNNER_TEMP/ExportOptions.plist"
+
+      - name: Fabricar (archive)
+        run: |
+          xcodebuild archive \
+            -project ios/App/App.xcodeproj -scheme App -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/asc/AuthKey_${ASC_KEY_ID}.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID" \
+            DEVELOPMENT_TEAM="$TEAM_ID" CODE_SIGN_STYLE=Automatic \
+            CURRENT_PROJECT_VERSION="${{ github.run_number }}" \
+            | tail -n 60
+
+      - name: Firmar y subir a TestFlight
+        run: |
+          xcodebuild -exportArchive \
+            -archivePath "$RUNNER_TEMP/App.xcarchive" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist" \
+            -exportPath "$RUNNER_TEMP/export" \
+            -allowProvisioningUpdates \
+            -authenticationKeyPath "$RUNNER_TEMP/asc/AuthKey_${ASC_KEY_ID}.p8" \
+            -authenticationKeyID "$ASC_KEY_ID" -authenticationKeyIssuerID "$ASC_ISSUER_ID"
+          echo "Subida la compilación ${{ github.run_number }}. Apple tarda unos minutos en procesarla antes de que aparezca en TestFlight."
+
+      - name: Borrar la clave del Mac
+        if: always()
+        run: rm -rf "$RUNNER_TEMP/asc"

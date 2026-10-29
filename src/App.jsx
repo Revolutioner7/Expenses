@@ -12,6 +12,7 @@ import {
 } from "./lib/utils.js";
 import { autoApplyAll, migrate } from "./lib/data.js";
 import { crearCopia, compartirApp, leerCopia } from "./lib/backup.js";
+import { esNativo, borrarSecretoBio, programarRecordatorio, quitarRecordatorio } from "./lib/nativo.js";
 import { canalActual, betaDesbloqueada, desbloquearBeta, cambiarCanal, TOQUES_PARA_DESBLOQUEAR } from "./lib/canal.js";
 import { cuotaPorId, mediaIngresosMensual, configPorDefecto } from "./lib/autonomo.js";
 import { AjustesAutonomo, ImpuestosTrimestreCard } from "./components/autonomo.jsx";
@@ -671,6 +672,26 @@ export default function App() {
     metaRef.current = meta;
     await store.set(STORE_KEY, await sealData(data, dekRef.current, meta));
     setBioOn(false);
+    await borrarSecretoBio(prf?.credId); // en la app de iPhone, quita también el secreto del llavero
+  };
+
+  /* ── recordatorio diario (solo en la app de iPhone): lo programa el propio teléfono ── */
+  const nativo = esNativo();
+  const recordatorio = data?.recordatorio || { activo: false, hora: "21:00" };
+  useEffect(() => {
+    if (!nativo || !data) return;
+    const [h, m] = (recordatorio.hora || "21:00").split(":").map(Number);
+    if (recordatorio.activo) programarRecordatorio(h, m).catch(() => {});
+    else quitarRecordatorio();
+  }, [nativo, !!data, recordatorio.activo, recordatorio.hora]);
+  const cambiarRecordatorio = async (cambios) => {
+    const siguiente = { ...recordatorio, ...cambios };
+    if (siguiente.activo) {
+      const [h, m] = siguiente.hora.split(":").map(Number);
+      const ok = await programarRecordatorio(h, m).catch(() => false);
+      if (!ok) { window.alert("Para el recordatorio hace falta permitir las notificaciones de Dineriko en Ajustes del iPhone."); return; }
+    }
+    setData((d) => ({ ...d, recordatorio: siguiente }));
   };
 
   const lockNow = async () => {
@@ -719,7 +740,7 @@ export default function App() {
   const [betaVisible, setBetaVisible] = useState(() => betaDesbloqueada());
   const toquesVersion = useRef(0);
   const toqueVersion = () => {
-    if (betaVisible) return;
+    if (betaVisible || esNativo()) return;
     toquesVersion.current += 1;
     if (toquesVersion.current >= TOQUES_PARA_DESBLOQUEAR) {
       desbloquearBeta();
@@ -2253,6 +2274,26 @@ export default function App() {
               resumen={heroModo === "gastado" ? "Gastado" : "Disponible"}
               abierto={grupoAbierto} onToggle={setGrupoAbierto}>
 
+              {nativo && (
+                <div className="cg-recordatorio" style={{ marginBottom: 16, paddingBottom: 14, borderBottom: "1px solid var(--line)" }}>
+                  <h3 style={{ fontSize: 13, fontWeight: 700, margin: "0 0 4px" }}>Recordatorio diario</h3>
+                  <p className="cg-hint" style={{ marginBottom: 10 }}>
+                    Un aviso al día para anotar lo que has gastado. Lo programa tu iPhone, no pasa por ningún servidor.
+                  </p>
+                  <div className="cg-toggle">
+                    <button className={recordatorio.activo ? "on" : ""} onClick={() => cambiarRecordatorio({ activo: true })}>Activado</button>
+                    <button className={!recordatorio.activo ? "on" : ""} onClick={() => cambiarRecordatorio({ activo: false })}>Desactivado</button>
+                  </div>
+                  {recordatorio.activo && (
+                    <div style={{ marginTop: 10, width: 140 }}>
+                      <label className="cg-lab" htmlFor="cg-rec-hora">Hora</label>
+                      <input id="cg-rec-hora" type="time" className="cg-input" value={recordatorio.hora}
+                        onChange={(e) => e.target.value && cambiarRecordatorio({ hora: e.target.value })} />
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div style={{ marginBottom: 16 }}>
                 <h3 style={{ fontSize: 13, fontWeight: 700, margin: "0 0 4px" }}>Número protagonista</h3>
                 <p className="cg-hint" style={{ marginBottom: 10 }}>
@@ -2534,7 +2575,7 @@ export default function App() {
                 </p>
               </div>
 
-              {betaVisible && (
+              {betaVisible && !esNativo() && (
                 <div className="cg-canal" style={{ marginBottom: 16, borderTop: "1px solid var(--line)", paddingTop: 14 }}>
                   <h3 style={{ fontSize: 13, fontWeight: 700, margin: "0 0 4px" }}>Canal beta</h3>
                   {canal === "beta" ? (
@@ -2562,7 +2603,7 @@ export default function App() {
                   style={{ fontFamily: "var(--mono)", fontSize: 11, color: "var(--muted)", margin: "0 0 6px", userSelect: "none" }}>
                   {APP_NAME} v{APP_VERSION}{canal === "beta" ? " · beta" : ""}
                 </p>
-                {"serviceWorker" in navigator && (
+                {"serviceWorker" in navigator && !esNativo() && (
                   <button className="cg-ghost" style={{ width: "auto", margin: 0, padding: "6px 14px", fontSize: 12 }}
                     onClick={async () => {
                       try {

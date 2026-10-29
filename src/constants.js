@@ -8,6 +8,7 @@ export const ONBOARD_KEY = "app-onboarding-v1"; // aparte de STORE_KEY: no es da
 export const WORKER_URL = "https://REEMPLAZA-ESTO.workers.dev";
 // ⚠️ Sustituir por el enlace real de la ficha en Google Play una vez publicada la app.
 // Hasta entonces, compartir en Android sigue usando el enlace normal de la web, sin dar error.
+export const WEB_URL = "https://dineriko.com/";
 export const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=REEMPLAZA-ESTO";
 // El nombre visible de la app, en un único sitio — cambiarlo aquí basta para todo el JS.
 // index.html, manifest.webmanifest y sw.js son archivos estáticos aparte y no leen esta

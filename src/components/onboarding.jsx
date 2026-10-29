@@ -1,8 +1,10 @@
 import React, { useState } from "react";
 import { APP_NAME } from "../constants.js";
 import { BancoPicker } from "./ui.jsx";
+import { esNativo } from "../lib/nativo.js";
 
 export function isAppInstalled() {
+  if (esNativo()) return true; // la app de la tienda ya está instalada: nada de "añadir a pantalla de inicio"
   return window.navigator.standalone === true ||
     (window.matchMedia && window.matchMedia("(display-mode: standalone)").matches);
 }

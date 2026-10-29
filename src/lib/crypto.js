@@ -6,6 +6,7 @@
    { enc:2, kdf, iter, salt, wrapped:{ pass:{iv,ct}, prf:{iv,ct,credId} }, iv, ct }
    ─────────────────────────────────────────────────────────────────────────── */
 import { APP_NAME } from "../constants.js";
+import { esNativo, bioDisponibleNativo, crearSecretoBio, obtenerSecretoBio, PREFIJO_LLAVERO } from "./nativo.js";
 
 export const ITER = 600000;
 export const PRF_SALT_TXT = "cuaderno-gastos-prf-v1";
@@ -59,6 +60,7 @@ export const tieneBio = (o) => !!o?.wrapped?.prf;
 
 /* ── Face ID / Touch ID vía passkey con extensión PRF ── */
 export async function bioDisponible() {
+  if (esNativo()) return bioDisponibleNativo();
   try {
     if (!window.PublicKeyCredential || !navigator.credentials) return false;
     return await window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
@@ -66,6 +68,7 @@ export async function bioDisponible() {
 }
 
 export async function prfObtener(credId) {
+  if (credId?.startsWith(PREFIJO_LLAVERO)) return obtenerSecretoBio(credId); // app de iPhone: llavero con Face ID
   const a = await navigator.credentials.get({ publicKey: {
     challenge: crypto.getRandomValues(new Uint8Array(32)),
     allowCredentials: [{ id: unb64(credId), type: "public-key" }],
@@ -79,6 +82,7 @@ export async function prfObtener(credId) {
 }
 
 export async function prfCrear() {
+  if (esNativo()) return crearSecretoBio();
   const cred = await navigator.credentials.create({ publicKey: {
     challenge: crypto.getRandomValues(new Uint8Array(32)),
     rp: { name: APP_NAME },   // rp.id se toma del dominio actual (cambiar solo name es seguro, no invalida passkeys)

@@ -2,12 +2,13 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.jsx";
 import { pedirPersistencia } from "./lib/storage.js";
+import { esNativo } from "./lib/nativo.js";
 
 pedirPersistencia();
 
 createRoot(document.getElementById("root")).render(<App />);
 
-if ("serviceWorker" in navigator) {
+if ("serviceWorker" in navigator && !esNativo()) { // en la app de iPhone no hay service worker: las versiones llegan por la tienda
   window.addEventListener("load", () => {
     navigator.serviceWorker.register("./sw.js").then((reg) => {
       // busca una versión nueva cada vez que la app vuelve a primer plano —
