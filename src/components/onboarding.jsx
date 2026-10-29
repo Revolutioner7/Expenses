@@ -44,12 +44,26 @@ function Opcion({ on, onClick, children }) {
   );
 }
 
-/* "Saltar por ahora" subrayado (la parte que se pulsa) + el resto de la frase como texto normal */
-function Saltar({ onClick, resto }) {
+/* "Ahora no": pasa de pregunta sin contestar. Todo se puede cambiar luego en Ajustes */
+function Saltar({ onClick }) {
   return (
     <p className="cg-onboard-skip">
-      <button className="cg-onboard-skiplink" onClick={onClick}>Saltar por ahora</button>. {resto}
+      <button className="cg-onboard-skiplink" onClick={onClick}>Ahora no</button>
     </p>
+  );
+}
+
+/* pregunta a pantalla completa: cabecera arriba, pregunta y opciones centradas en el resto */
+function Pregunta({ paso, onBack, titulo, sub, children }) {
+  return (
+    <div className="cg-onboard cg-onboard-q">
+      <CabeceraPaso paso={paso} onBack={onBack} />
+      <div className="cg-onboard-body">
+        <h1 className="cg-onboard-qtitle">{titulo}</h1>
+        {sub && <p className="cg-onboard-qsub">{sub}</p>}
+        {children}
+      </div>
+    </div>
   );
 }
 
@@ -71,7 +85,7 @@ export function Onboarding({ startStep, onDone, bancos, masUsadoBancoId, onAddBa
         <div className="cg-onboard">
           <div className="cg-onboard-head">
             <button className="cg-navbtn" onClick={() => setStep("consent")} aria-label="Atrás">←</button>
-            <h1 className="cg-title" style={{ margin: 0 }}>Cómo instalar</h1>
+            <h1 className="cg-title" style={{ margin: 0 }}>Ponla en tu pantalla de inicio</h1>
           </div>
 
           {(() => {
@@ -84,7 +98,7 @@ export function Onboarding({ startStep, onDone, bancos, masUsadoBancoId, onAddBa
                     <p className="cg-onboard-step">1. Abre este enlace en Safari</p>
                     <p className="cg-onboard-step">2. Toca el icono de compartir</p>
                     <p className="cg-onboard-step">3. Elige «Añadir a pantalla de inicio»</p>
-                    <p className="cg-onboard-step">4. Abre el icono nuevo desde tu pantalla</p>
+                    <p className="cg-onboard-step">4. Ábrela desde el icono nuevo, no desde Safari</p>
                   </div>
                 )}
 
@@ -94,29 +108,29 @@ export function Onboarding({ startStep, onDone, bancos, masUsadoBancoId, onAddBa
                     <p className="cg-onboard-step">1. Abre este enlace en Chrome</p>
                     <p className="cg-onboard-step">2. Toca los tres puntos de arriba</p>
                     <p className="cg-onboard-step">3. Elige «Añadir a pantalla de inicio»</p>
-                    <p className="cg-onboard-step">4. Abre el icono nuevo desde tu pantalla</p>
+                    <p className="cg-onboard-step">4. Ábrela desde el icono nuevo, no desde Chrome</p>
                   </div>
                 )}
               </>
             );
           })()}
 
-          <button className="cg-btn" onClick={() => setStep("consent")}>Entendido, empezar</button>
+          <button className="cg-btn" onClick={() => setStep("consent")}>Hecho</button>
           <div style={{ textAlign: "center", marginTop: 12 }}>
-            <button className="cg-ghost" onClick={() => setStep("consent")}>Seguir sin instalar por ahora</button>
+            <button className="cg-ghost" onClick={() => setStep("consent")}>Prefiero seguir en el navegador</button>
           </div>
         </div>
       ) : step === "consent" ? (
         <div className="cg-onboard">
           <img src="./icon-192.png" alt="" className="cg-onboard-logo" />
           <p className="cg-onboard-title">{APP_NAME}</p>
-          <p className="cg-onboard-tag">Tu dinero, con acompañamiento.</p>
+          <p className="cg-onboard-tag">Para que el dinero no desaparezca sin dar explicaciones.</p>
 
           <label className="cg-lab" htmlFor="cg-onboard-email">Email</label>
           <input id="cg-onboard-email" className="cg-input" type="email" placeholder="tu@email.com"
             value={email} onChange={(e) => setEmail(e.target.value)} style={{ marginBottom: 4 }} />
           <p className="cg-hint" style={{ marginBottom: 16 }}>
-            Por favor, por motivos de seguridad y satisfacción, registra tu email. Nunca se comparte con terceros.
+            Opcional. Solo lo usamos para avisarte de algo importante de la app. Ni spam ni terceros.
           </p>
 
           <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 20 }}>
@@ -134,60 +148,42 @@ export function Onboarding({ startStep, onDone, bancos, masUsadoBancoId, onAddBa
           </p>
         </div>
       ) : step === "vista" ? (
-        <div className="cg-onboard">
-          <CabeceraPaso paso={3} onBack={() => setStep("consent")} />
-          <p className="cg-title" style={{ textAlign: "center", marginTop: 8, marginBottom: 4 }}>
-            ¿Qué es más importante, lo que llevas gastado este mes o lo que queda disponible?
-          </p>
-          <p className="cg-hint" style={{ textAlign: "center", marginBottom: 20 }}>
-            Es el número grande de la pantalla principal. Puedes cambiarlo cuando quieras en Ajustes.
-          </p>
-
-          <div className="cg-onboard-choices">
-            <Opcion on={heroModo === "gastado"} onClick={() => { setHeroModo("gastado"); setStep("difpago"); }}>Gasto</Opcion>
-            <Opcion on={heroModo === "disponible"} onClick={() => { setHeroModo("disponible"); setStep("difpago"); }}>Disponible</Opcion>
+        <Pregunta paso={3} onBack={() => setStep("consent")}
+          titulo="¿Qué quieres ver primero al abrir la app?"
+          sub="Lo que llevas gastado o lo que te queda. Sale en grande, arriba del todo.">
+          <div className="cg-onboard-choices stack">
+            <Opcion on={heroModo === "gastado"} onClick={() => { setHeroModo("gastado"); setStep("difpago"); }}>Lo gastado</Opcion>
+            <Opcion on={heroModo === "disponible"} onClick={() => { setHeroModo("disponible"); setStep("difpago"); }}>Lo que me queda</Opcion>
           </div>
-
-          <Saltar onClick={() => setStep("difpago")} resto="Puedes decidirlo luego en Ajustes." />
-        </div>
+          <Saltar onClick={() => setStep("difpago")} />
+        </Pregunta>
       ) : step === "difpago" ? (
-        <div className="cg-onboard">
-          <CabeceraPaso paso={4} onBack={() => setStep("vista")} />
-          <p className="cg-title" style={{ textAlign: "center", marginTop: 8, marginBottom: 4 }}>
-            ¿Te interesa diferenciar cómo se pagan los gastos?
-          </p>
-          <p className="cg-hint" style={{ textAlign: "center", marginBottom: 20 }}>
-            Si lo activas, podrás seleccionar entre tarjeta, transferencia, dinero, etc.
-          </p>
-
-          <div className="cg-onboard-choices">
+        <Pregunta paso={4} onBack={() => setStep("vista")}
+          titulo="¿Quieres saber con qué pagas?"
+          sub="Tarjeta, Bizum, efectivo… Así ves qué cuenta se vacía antes.">
+          <div className="cg-onboard-choices stack">
             <Opcion on={diferenciarPago === true} onClick={() => { setDiferenciarPago(true); setStep("pago"); }}>Sí</Opcion>
             <Opcion on={diferenciarPago === false} onClick={() => { setDiferenciarPago(false); setStep("periodicos"); }}>No</Opcion>
           </div>
-
-          <Saltar onClick={() => setStep("pago")} resto="Puedes decidirlo luego en Ajustes → Dinero." />
-        </div>
+          {/* sin contestar no tiene sentido preguntar cómo paga: se pasa directo a la siguiente */}
+          <Saltar onClick={() => setStep("periodicos")} />
+        </Pregunta>
       ) : step === "pago" ? (
-        <div className="cg-onboard">
-          <CabeceraPaso paso={5} onBack={() => setStep("difpago")} />
-          <p className="cg-title" style={{ textAlign: "center", marginTop: 8, marginBottom: 4 }}>¿Cómo pagas normalmente?</p>
-          <p className="cg-hint" style={{ textAlign: "center", marginBottom: 20 }}>
-            Así lo dejamos ya marcado cuando anotes un gasto. Puedes cambiarlo cuando quieras, o pasar de esto.
-          </p>
-
-          {/* textos largos: una opción por fila. Efectivo y Bizum contestan y avanzan; tarjeta
-              necesita un paso más (elegir banco), así que es la única que enseña "Continuar" */}
+        <Pregunta paso={5} onBack={() => setStep("difpago")}
+          titulo="¿Cómo pagas casi siempre?"
+          sub="Lo dejamos marcado al anotar un gasto. Un toque menos cada vez.">
+          {/* efectivo y Bizum contestan y avanzan; tarjeta necesita elegir banco, así que es la única con "Continuar" */}
           <div className="cg-onboard-choices stack">
             <Opcion on={formaPago === "efectivo"}
               onClick={() => { setFormaPago("efectivo"); setBancoId(null); setMostrarPicker(false); setStep("periodicos"); }}>
-              Casi siempre en efectivo
+              En efectivo
             </Opcion>
             <Opcion on={formaPago === "bizum"}
               onClick={() => { setFormaPago("bizum"); setBancoId(null); setMostrarPicker(false); setStep("periodicos"); }}>
-              Casi siempre con Bizum/Transferencia
+              Con Bizum o transferencia
             </Opcion>
             <Opcion on={formaPago === "banco"} onClick={() => setFormaPago("banco")}>
-              Casi siempre con tarjeta
+              Con tarjeta
             </Opcion>
           </div>
 
@@ -199,8 +195,8 @@ export function Onboarding({ startStep, onDone, bancos, masUsadoBancoId, onAddBa
                     onSelect={(id) => { setBancoId(id); setMostrarPicker(false); }} onAddNuevo={onAddBanco} />
                 </div>
               ) : (
-                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "11px 12px", borderRadius: 10, background: "#E6F1FB", marginTop: 12 }}>
-                  <span style={{ fontSize: 13 }}>{bancoElegido ? bancoElegido.name : "Elige tu banco…"}</span>
+                <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", padding: "14px 14px", borderRadius: 12, background: "#E6F1FB", marginTop: 12 }}>
+                  <span style={{ fontSize: 16 }}>{bancoElegido ? bancoElegido.name : "¿De qué banco?"}</span>
                   <button className="cg-vermas" onClick={() => setMostrarPicker(true)}>{bancoElegido ? "cambiar" : "elegir"}</button>
                 </div>
               )}
@@ -210,36 +206,27 @@ export function Onboarding({ startStep, onDone, bancos, masUsadoBancoId, onAddBa
             </>
           )}
 
-          <Saltar onClick={() => setStep("periodicos")} resto="Puedes decidirlo luego en Ajustes." />
-        </div>
+          <Saltar onClick={() => setStep("periodicos")} />
+        </Pregunta>
       ) : (
-        <div className="cg-onboard">
-          {/* atrás vuelve a la última pregunta que de verdad se vio: si se contestó "No" a diferenciar
-              pagos, el paso 5 se saltó entero, así que se vuelve al 4 */}
-          <CabeceraPaso paso={6} onBack={() => setStep(diferenciarPago === false ? "difpago" : "pago")} />
-          <p className="cg-title" style={{ textAlign: "center", marginTop: 8, marginBottom: 4 }}>
-            ¿Tienes gastos que no se pagan mensualmente?
-          </p>
-          <p className="cg-hint" style={{ textAlign: "center", marginBottom: 20 }}>
-            Seguros, comunidad, suscripciones anuales… Podemos ayudarte a separar un monto cada mes
-            para no tener que pagarlo de golpe.
-          </p>
-
+        /* atrás vuelve a la última pregunta que de verdad se vio: si se contestó "No" (o "Ahora no")
+           a saber con qué paga, el paso 5 se saltó entero, así que se vuelve al 4 */
+        <Pregunta paso={6} onBack={() => setStep(diferenciarPago === true ? "pago" : "difpago")}
+          titulo="¿Tienes pagos que no llegan cada mes?"
+          sub="El seguro del coche, la comunidad, esa suscripción anual que siempre olvidas… Te ayudamos a apartar un poco cada mes para que no duela de golpe.">
           {/* el valor elegido se pasa directo a onDone: el estado de React aún no se habría actualizado */}
-          <div className="cg-onboard-choices">
+          <div className="cg-onboard-choices stack">
             <Opcion on={gastosPeriodicos === true}
               onClick={() => { setGastosPeriodicos(true); onDone(email.trim(), { formaPago, bancoId: formaPago === "banco" ? bancoId : null }, heroModo, true, diferenciarPago); }}>
-              Sí, ayudadme
+              Sí, échame una mano
             </Opcion>
             <Opcion on={gastosPeriodicos === false}
               onClick={() => { setGastosPeriodicos(false); onDone(email.trim(), { formaPago, bancoId: formaPago === "banco" ? bancoId : null }, heroModo, false, diferenciarPago); }}>
               No, gracias
             </Opcion>
           </div>
-
-          <Saltar onClick={() => onDone(email.trim(), null, heroModo, gastosPeriodicos, diferenciarPago)}
-            resto="Puedes decidirlo luego en Ajustes → Dinero." />
-        </div>
+          <Saltar onClick={() => onDone(email.trim(), null, heroModo, gastosPeriodicos, diferenciarPago)} />
+        </Pregunta>
       )}
     </div>
   );

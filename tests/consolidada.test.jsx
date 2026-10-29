@@ -164,14 +164,14 @@ describe("patrón ver más / ver menos", () => {
 describe("onboarding", () => {
   it("usuario nuevo ve la pantalla de instalación", async () => {
     await montar(null, {});
-    expect(txt()).toContain("Cómo instalar");
+    expect(txt()).toContain("Ponla en tu pantalla de inicio");
   });
 
   it("usuario existente nunca ve el onboarding, ve el aviso no bloqueante", async () => {
     const seed = { version: 8, categories: CATS, learned: {}, recurring: [], metas: [],
       months: { "2026-08": { expenses: [], incomes: [] } } };
     await montar(seed, {});
-    expect(txt()).not.toContain("Cómo instalar");
+    expect(txt()).not.toContain("Ponla en tu pantalla de inicio");
     expect(txt()).not.toContain("He leído y acepto");
     expect(txt()).toContain("Novedad en esta actualización");
   });
@@ -297,17 +297,17 @@ describe("Fijos: forma de pago", () => {
 describe("Interruptor de Forma de pago", () => {
   it("en el onboarding, contestar 'No' salta el paso de '¿Cómo pagas normalmente?' del todo, y guarda formaPagoActivada en false", async () => {
     await montar(null, {});
-    await act(async () => { click([...document.querySelectorAll("button")].find((b) => b.textContent === "Entendido, empezar")); });
+    await act(async () => { click([...document.querySelectorAll("button")].find((b) => b.textContent === "Hecho")); });
     await act(async () => { setVal(document.getElementById("cg-onboard-email"), "test@test.com"); });
     await act(async () => { click(document.getElementById("cg-onboard-accept")); });
     await act(async () => { click([...document.querySelectorAll("button")].find((b) => b.textContent === "Empezar")); });
-    await act(async () => { click([...document.querySelectorAll("button")].find((b) => b.textContent === "Saltar por ahora")); }); // vista, sin elegir nada
-    expect(txt()).toContain("¿Te interesa diferenciar cómo se pagan los gastos?");
+    await act(async () => { click([...document.querySelectorAll("button")].find((b) => b.textContent === "Ahora no")); }); // vista, sin elegir nada
+    expect(txt()).toContain("¿Quieres saber con qué pagas?");
 
     await act(async () => { click([...document.querySelectorAll("button")].find((b) => b.textContent === "No")); });
-    // salta pago del todo: directo a periodicos, sin ver "¿Cómo pagas normalmente?"
-    expect(txt()).not.toContain("¿Cómo pagas normalmente?");
-    expect(txt()).toContain("¿Tienes gastos que no se pagan mensualmente?");
+    // salta pago del todo: directo a periodicos, sin ver "¿Cómo pagas casi siempre?"
+    expect(txt()).not.toContain("¿Cómo pagas casi siempre?");
+    expect(txt()).toContain("¿Tienes pagos que no llegan cada mes?");
 
     await act(async () => { click([...document.querySelectorAll("button")].find((b) => b.textContent === "No, gracias")); }); // tocar la opción ya termina el inicio
     await act(async () => { await new Promise((r) => setTimeout(r, 100)); });
@@ -319,14 +319,14 @@ describe("Interruptor de Forma de pago", () => {
 
   it("en el onboarding, contestar 'Sí' lleva al paso de '¿Cómo pagas normalmente?'", async () => {
     await montar(null, {});
-    await act(async () => { click([...document.querySelectorAll("button")].find((b) => b.textContent === "Entendido, empezar")); });
+    await act(async () => { click([...document.querySelectorAll("button")].find((b) => b.textContent === "Hecho")); });
     await act(async () => { setVal(document.getElementById("cg-onboard-email"), "test@test.com"); });
     await act(async () => { click(document.getElementById("cg-onboard-accept")); });
     await act(async () => { click([...document.querySelectorAll("button")].find((b) => b.textContent === "Empezar")); });
-    await act(async () => { click([...document.querySelectorAll("button")].find((b) => b.textContent === "Saltar por ahora")); });
+    await act(async () => { click([...document.querySelectorAll("button")].find((b) => b.textContent === "Ahora no")); });
 
     await act(async () => { click([...document.querySelectorAll("button")].find((b) => b.textContent === "Sí")); });
-    expect(txt()).toContain("¿Cómo pagas normalmente?");
+    expect(txt()).toContain("¿Cómo pagas casi siempre?");
   });
 
 
@@ -686,20 +686,20 @@ describe("Gastos periódicos", () => {
   it("el paso nuevo de onboarding aplica gastosPeriodicosActivado y marca el aviso como visto", async () => {
     await montar(null, {});
     // install -> consent
-    await act(async () => { click([...document.querySelectorAll("button")].find((b) => b.textContent === "Entendido, empezar")); });
+    await act(async () => { click([...document.querySelectorAll("button")].find((b) => b.textContent === "Hecho")); });
     // consent -> vista
     await act(async () => { setVal(document.getElementById("cg-onboard-email"), "test@test.com"); });
     await act(async () => { click(document.getElementById("cg-onboard-accept")); });
     await act(async () => { click([...document.querySelectorAll("button")].find((b) => b.textContent === "Empezar")); });
     // vista -> difpago
-    await act(async () => { click([...document.querySelectorAll("button")].find((b) => b.textContent === "Disponible")); }); // tocar ya avanza
+    await act(async () => { click([...document.querySelectorAll("button")].find((b) => b.textContent === "Lo que me queda")); }); // tocar ya avanza
     // difpago -> pago
     await act(async () => { click([...document.querySelectorAll("button")].find((b) => b.textContent === "Sí")); });
     // pago -> periodicos
-    await act(async () => { click([...document.querySelectorAll("button")].find((b) => b.textContent.includes("Casi siempre en efectivo"))); }); // tocar ya avanza
+    await act(async () => { click([...document.querySelectorAll("button")].find((b) => b.textContent.includes("En efectivo"))); }); // tocar ya avanza
     // periodicos -> fin
-    expect(txt()).toContain("¿Tienes gastos que no se pagan mensualmente?");
-    await act(async () => { click([...document.querySelectorAll("button")].find((b) => b.textContent === "Sí, ayudadme")); }); // tocar ya termina el inicio
+    expect(txt()).toContain("¿Tienes pagos que no llegan cada mes?");
+    await act(async () => { click([...document.querySelectorAll("button")].find((b) => b.textContent === "Sí, échame una mano")); }); // tocar ya termina el inicio
     await act(async () => { await new Promise((r) => setTimeout(r, 100)); });
 
     // ya en la app: la preferencia quedó activada, así que el aviso para usuarios existentes no debe verse
@@ -1871,7 +1871,7 @@ describe("Hero: Disponible vs Gastado", () => {
       configurable: true,
     });
     await montar(null, {}); // sin datos previos: usuario nuevo de verdad, entra en el instalador
-    expect(txt()).toContain("Cómo instalar");
+    expect(txt()).toContain("Ponla en tu pantalla de inicio");
     expect(txt()).toContain("iPhone");
     expect(txt()).not.toContain("Android");
   });
@@ -1882,7 +1882,7 @@ describe("Hero: Disponible vs Gastado", () => {
       configurable: true,
     });
     await montar(null, {});
-    expect(txt()).toContain("Cómo instalar");
+    expect(txt()).toContain("Ponla en tu pantalla de inicio");
     expect(txt()).toContain("Android");
     expect(txt()).not.toContain("iPhone");
   });
@@ -2012,7 +2012,7 @@ describe("Preguntas de inicio: opciones que avanzan al tocarlas, flecha de atrá
   const btn = (t) => [...document.querySelectorAll("button")].find((b) => b.textContent.trim() === t);
   const hastaVista = async () => {
     await montar(null, {});
-    await act(async () => { click(btn("Entendido, empezar")); });
+    await act(async () => { click(btn("Hecho")); });
     await act(async () => { setVal(document.getElementById("cg-onboard-email"), "test@test.com"); });
     await act(async () => { click(document.getElementById("cg-onboard-accept")); });
     await act(async () => { click(btn("Empezar")); });
@@ -2022,19 +2022,19 @@ describe("Preguntas de inicio: opciones que avanzan al tocarlas, flecha de atrá
     await hastaVista();
     expect(txt()).toContain("Paso 3 de 6");
     expect(btn("Continuar")).toBeUndefined();
-    await act(async () => { click(btn("Gasto")); });
+    await act(async () => { click(btn("Lo gastado")); });
     expect(txt()).toContain("Paso 4 de 6");
     expect(btn("Continuar")).toBeUndefined();
   });
 
   it("la flecha de atrás vuelve a la pregunta anterior y enseña marcada la opción que se había elegido", async () => {
     await hastaVista();
-    await act(async () => { click(btn("Disponible")); });
+    await act(async () => { click(btn("Lo que me queda")); });
     expect(txt()).toContain("Paso 4 de 6");
     await act(async () => { click(document.querySelector(".cg-onboard-back")); });
     expect(txt()).toContain("Paso 3 de 6");
-    expect(btn("Disponible").classList.contains("on")).toBe(true);
-    expect(btn("Gasto").classList.contains("on")).toBe(false);
+    expect(btn("Lo que me queda").classList.contains("on")).toBe(true);
+    expect(btn("Lo gastado").classList.contains("on")).toBe(false);
     // y desde el paso 3, atrás vuelve a la pantalla del email sin perder lo escrito
     await act(async () => { click(document.querySelector(".cg-onboard-back")); });
     expect(document.getElementById("cg-onboard-email").value).toBe("test@test.com");
@@ -2043,47 +2043,57 @@ describe("Preguntas de inicio: opciones que avanzan al tocarlas, flecha de atrá
 
   it("desde el paso 6, atrás vuelve al 4 si se contestó No (el 5 se saltó entero), y al 5 si se contestó Sí", async () => {
     await hastaVista();
-    await act(async () => { click(btn("Gasto")); });
+    await act(async () => { click(btn("Lo gastado")); });
     await act(async () => { click(btn("No")); });
     expect(txt()).toContain("Paso 6 de 6");
     await act(async () => { click(document.querySelector(".cg-onboard-back")); });
     expect(txt()).toContain("Paso 4 de 6");
     await act(async () => { click(btn("Sí")); });
-    await act(async () => { click(btn("Casi siempre en efectivo")); });
+    await act(async () => { click(btn("En efectivo")); });
     expect(txt()).toContain("Paso 6 de 6");
     await act(async () => { click(document.querySelector(".cg-onboard-back")); });
     expect(txt()).toContain("Paso 5 de 6");
-    expect(btn("Casi siempre en efectivo").classList.contains("on")).toBe(true);
+    expect(btn("En efectivo").classList.contains("on")).toBe(true);
   });
 
   it("en el paso 5, solo 'con tarjeta' enseña Continuar (hay que poder elegir banco antes de seguir)", async () => {
     await hastaVista();
-    await act(async () => { click(btn("Gasto")); });
+    await act(async () => { click(btn("Lo gastado")); });
     await act(async () => { click(btn("Sí")); });
     expect(btn("Continuar")).toBeUndefined();
-    await act(async () => { click(btn("Casi siempre con tarjeta")); });
+    await act(async () => { click(btn("Con tarjeta")); });
     expect(txt()).toContain("Paso 5 de 6"); // no avanza sola
-    expect(txt()).toContain("Elige tu banco");
+    expect(txt()).toContain("¿De qué banco?");
     await act(async () => { click(btn("Continuar")); });
     expect(txt()).toContain("Paso 6 de 6");
   });
 
+  it("'Ahora no' en el paso 4 pasa directo al 6: sin contestar, no tiene sentido preguntar cómo paga", async () => {
+    await hastaVista();
+    await act(async () => { click(btn("Lo gastado")); });
+    expect(txt()).toContain("Paso 4 de 6");
+    await act(async () => { click(btn("Ahora no")); });
+    expect(txt()).toContain("Paso 6 de 6");
+    await act(async () => { click(document.querySelector(".cg-onboard-back")); });
+    expect(txt()).toContain("Paso 4 de 6");
+  });
+
   it("'Saltar por ahora' es un enlace propio (el que va subrayado) y pasa de pregunta sin guardar respuesta", async () => {
     await hastaVista();
-    const saltar = btn("Saltar por ahora");
+    const saltar = btn("Ahora no");
     expect(saltar.className).toContain("cg-onboard-skiplink");
     await act(async () => { click(saltar); });
     expect(txt()).toContain("Paso 4 de 6");
     await act(async () => { click(document.querySelector(".cg-onboard-back")); });
-    expect(btn("Gasto").classList.contains("on")).toBe(false);
-    expect(btn("Disponible").classList.contains("on")).toBe(false);
+    expect(btn("Lo gastado").classList.contains("on")).toBe(false);
+    expect(btn("Lo que me queda").classList.contains("on")).toBe(false);
   });
 
   it("lo elegido con un toque se guarda de verdad al terminar: vista Gasto y gastos periódicos activados", async () => {
     await hastaVista();
-    await act(async () => { click(btn("Gasto")); });
+    await act(async () => { click(btn("Lo gastado")); });
     await act(async () => { click(btn("No")); });
-    await act(async () => { click(btn("Sí, ayudadme")); });
+    await act(async () => { click(btn("Sí, échame una mano")); });
     await act(async () => { await new Promise((r) => setTimeout(r, 100)); });
     expect(txt()).not.toContain("Paso 6 de 6"); // ya en la app
     expect(txt()).not.toContain("¿Te gustaría que te ayudemos a pagar tus gastos");
@@ -2093,7 +2103,7 @@ describe("Preguntas de inicio: opciones que avanzan al tocarlas, flecha de atrá
 describe("Retoques del 20 de septiembre", () => {
   it("la pantalla del email dice que son los DETALLES de los gastos los que no salen del dispositivo", async () => {
     await montar(null, {});
-    await act(async () => { click([...document.querySelectorAll("button")].find((b) => b.textContent === "Entendido, empezar")); });
+    await act(async () => { click([...document.querySelectorAll("button")].find((b) => b.textContent === "Hecho")); });
     expect(txt()).toContain("Los detalles de tus gastos nunca salen de este dispositivo");
   });
 
