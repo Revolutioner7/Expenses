@@ -1,12 +1,12 @@
 /* Dineriko — funciona sin conexión */
-const CACHE = 'dineriko-v11';
+const CACHE = 'dineriko-v12';
 const SHELL = [
   './',
   './index.html',
-  './boot.js?v=11',
-  './bundle.js?v=11',
-  './bundle-beta.js?v=11',
-  './styles.css?v=11',
+  './boot.js?v=12',
+  './bundle.js?v=12',
+  './bundle-beta.js?v=12',
+  './styles.css?v=12',
   './manifest.webmanifest',
   './icon-192.png',
   './icon-512.png',

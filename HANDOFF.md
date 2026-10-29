@@ -1185,4 +1185,5 @@ en su Mac.
   se leen con `gh run view`; (2) la clave .p8 se reconstruye en formato PEM en el propio procedimiento
   porque al pegarla en GitHub se pierden los saltos de línea; (3) Apple exige el SDK de iOS 26: el
   procedimiento elige el Xcode 26+ más reciente del Mac de GitHub.
+- **29 oct, noche: beta v12 publicada** (caché `dineriko-v12`): preguntas de inicio a pantalla completa con textos nuevos, y cuentas conectadas al servidor real `https://dineriko-api.rodrigoharmat.workers.dev` (prueba de humo en verde tras publicar). La estable no cambia. **Antes de pasar las cuentas a estable: Política de Privacidad nueva.**
 

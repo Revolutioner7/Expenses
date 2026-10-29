@@ -260,3 +260,21 @@ label.cg-lab{display:block;font-family:var(--mono);font-size:10px;letter-spacing
 .cg-link:hover{color:#0C447C;}
 .cg-menu-selector{top:48px;width:100%;}
 .cg-autonomo .cg-toggle button{min-height:40px;}
+
+/* ── preguntas de inicio a pantalla completa (v12) ── */
+.cg-onboard-q{min-height:100vh;min-height:100dvh;box-sizing:border-box;display:flex;flex-direction:column;
+  padding:calc(env(safe-area-inset-top,0px) + 20px) 20px calc(env(safe-area-inset-bottom,0px) + 24px);}
+.cg-onboard-body{flex:1;display:flex;flex-direction:column;justify-content:center;padding-bottom:8vh;}
+.cg-onboard-qtitle{font-family:var(--display);font-size:clamp(26px,7.4vw,34px);line-height:1.15;font-weight:700;
+  letter-spacing:-.01em;color:var(--ink);text-align:center;margin:0 0 12px;}
+.cg-onboard-qsub{font-size:17px;line-height:1.45;color:var(--muted);text-align:center;margin:0 auto 32px;max-width:34ch;}
+.cg-onboard-q .cg-onboard-choices{gap:14px;}
+.cg-onboard-q .cg-onboard-choice{min-height:72px;font-size:19px;border-radius:18px;}
+.cg-onboard-q .cg-onboard-skip{margin-top:26px;}
+.cg-onboard-q .cg-onboard-skiplink{font-size:16px;padding:12px 16px;}
+
+/* ── cuenta (v12) ── */
+.cg-codigo{font-family:var(--mono);font-size:17px;letter-spacing:.06em;line-height:1.6;background:#F4F8F5;border:1px dashed var(--line);
+  border-radius:12px;padding:14px;text-align:center;word-break:break-word;user-select:all;-webkit-user-select:all;margin:0 0 10px;}
+.cg-cuenta-error{color:var(--red);font-size:13.5px;margin:0 0 10px;}
+.cg-link[disabled]{opacity:.45;cursor:not-allowed;}
