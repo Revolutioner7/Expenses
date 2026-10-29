@@ -166,3 +166,16 @@ describe("Cuentas · en la app", () => {
     expect(texto).not.toContain("llave");
   });
 });
+
+describe("Aviso de Privacidad", () => {
+  it("cuenta lo que pasa con y sin cuenta, y que el servidor no puede leer los datos", async () => {
+    const { PRIVACIDAD } = await import("../src/privacidad.js");
+    const todo = JSON.stringify(PRIVACIDAD);
+    expect(todo).toContain("cifrados de extremo a extremo");
+    expect(todo).toContain("no salen de tu dispositivo");
+    expect(todo).toContain("Cloudflare");
+    expect(todo).toContain("Borrar cuenta");
+    expect(todo).toContain("aepd.es");
+    expect(PRIVACIDAD.actualizado).toMatch(/2026/);
+  });
+});

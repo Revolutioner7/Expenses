@@ -12,7 +12,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "www": "node scripts/www.mjs",
-    "ios:sync": "npm run build && npm run www && npx cap sync ios"
+    "ios:sync": "npm run build && npm run www && npx cap sync ios",
+    "privacidad": "node scripts/privacidad.mjs"
   },
   "dependencies": {
     "@capacitor/core": "8.5.3",

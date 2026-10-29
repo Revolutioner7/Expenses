@@ -131,7 +131,7 @@ export function Onboarding({ startStep, onDone, bancos, masUsadoBancoId, onAddBa
           <input id="cg-onboard-email" className="cg-input" type="email" placeholder="tu@email.com"
             value={email} onChange={(e) => setEmail(e.target.value)} style={{ marginBottom: 4 }} />
           <p className="cg-hint" style={{ marginBottom: 16 }}>
-            Opcional. Solo lo usamos para avisarte de algo importante de la app. Ni spam ni terceros.
+            Opcional. De momento se queda en tu móvil. Si algún día lo usamos para avisarte de algo, te lo diremos antes.
           </p>
 
           <div style={{ display: "flex", alignItems: "flex-start", gap: 8, marginBottom: 20 }}>
