@@ -57,7 +57,12 @@ jobs:
           npx cap sync ios
 
       - name: Elegir Xcode
-        run: sudo xcode-select -s "$(ls -d /Applications/Xcode_16*.app | sort -V | tail -1)" && xcodebuild -version
+        run: |
+          # Apple exige el SDK de iOS 26 o posterior: se elige el Xcode 26+ más reciente que no sea beta
+          ls -d /Applications/Xcode*.app
+          x=$(ls -d /Applications/Xcode_2[6-9]*.app /Applications/Xcode_[3-9][0-9]*.app 2>/dev/null | grep -viE "beta|_rc" | sort -V | tail -1)
+          if [ -z "$x" ]; then echo "::error::Este Mac de GitHub no tiene Xcode 26 o posterior"; exit 1; fi
+          sudo xcode-select -s "$x" && xcodebuild -version
 
       - name: Preparar la clave de App Store Connect
         env:
