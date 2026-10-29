@@ -68,5 +68,8 @@ jobs:
           url=$(grep -oE "https://[a-z0-9.-]+\.workers\.dev" deploy.log | head -1)
           echo "Dirección del servidor: $url"
           echo "::notice::Servidor publicado en $url"
-          for i in 1 2 3 4 5 6; do curl -fsS "$url/health" && exit 0; sleep 5; done
-          echo "::error::El servidor no responde en $url/health"; exit 1
+          for i in 1 2 3 4 5 6; do curl -fsS "$url/health" && break; sleep 5; [ $i = 6 ] && { echo "::error::El servidor no responde en $url/health"; exit 1; }; done
+          echo "BASE=$url" >> "$GITHUB_ENV"
+
+      - name: Prueba de humo contra el servidor real
+        run: node prueba-real.mjs
