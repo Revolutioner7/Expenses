@@ -1,0 +1,15 @@
+# Servidor de cuentas de Dineriko (Cloudflare Workers + D1 con los datos fijados a la UE).
+# El database_id lo pone el procedimiento de GitHub al publicar (ver .github/workflows/server-deploy.yml).
+name = "dineriko-api"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+workers_dev = true
+
+[[d1_databases]]
+binding = "DB"
+database_name = "dineriko"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[vars]
+ALLOWED_ORIGINS = "https://dineriko.com,https://www.dineriko.com,https://revolutioner7.github.io,capacitor://localhost,http://localhost"
