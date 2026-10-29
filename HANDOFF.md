@@ -1218,9 +1218,9 @@ proyectos ocupados por Reliko; Cloudflare cuesta 0 € y la cuenta ya existía).
 - **Pruebas:** `server/prueba-integracion.mjs` (13 comprobaciones de punta a punta con dos
   dispositivos contra `wrangler dev --local`, incluida que en la base de datos no se lee nada) y
   `tests/cuenta.test.jsx` (9). Total app: 161.
-- **Falta para publicar:** que Rodrigo cree el token de Cloudflare y los dos secretos; publicar el
-  servidor; poner la URL real en `API_URL` y en el `connect-src` de la CSP de `index.html`;
-  actualizar la Política de Privacidad (responsable del tratamiento, email, Cloudflare como
+- **Hecho el 29 oct:** servidor publicado y prueba de humo en verde; `API_URL` y CSP apuntando a él.
+- **Falta para pasar a estable:** actualizar la Política de Privacidad (responsable del tratamiento, email, Cloudflare como
   encargado, jurisdicción UE). Fases 2 a 4 sin empezar (Apple/Google, "Lo he perdido todo", aviso
   a quien no tiene cuenta).
+- **29 oct, noche: beta v12 publicada** (caché `dineriko-v12`): preguntas de inicio a pantalla completa con textos nuevos, y cuentas conectadas al servidor real `https://dineriko-api.rodrigoharmat.workers.dev` (prueba de humo en verde tras publicar). La estable no cambia. **Antes de pasar las cuentas a estable: Política de Privacidad nueva.**
 
