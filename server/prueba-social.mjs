@@ -19,7 +19,7 @@ if (process.argv[2] === "claves") {
 
 const { crearCuentaSocial, entrarCuentaSocial, consultarSocial, crearCuenta, entrarCuenta, sincronizar, borrarCuenta } = await import("../src/lib/cuenta.js");
 const BASE = process.env.BASE || "http://localhost:8799";
-execSync(`npx wrangler d1 execute dineriko --local --command "DELETE FROM identities; DELETE FROM items; DELETE FROM sessions; DELETE FROM users; DELETE FROM login_attempts;" 2>/dev/null`);
+execSync(`npx wrangler d1 execute dineriko --local --command "DELETE FROM recoveries; DELETE FROM identities; DELETE FROM items; DELETE FROM sessions; DELETE FROM users; DELETE FROM login_attempts;" 2>/dev/null`);
 const { priv } = JSON.parse(readFileSync(RUTA, "utf8"));
 const clave = await wc.subtle.importKey("jwk", priv, { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]);
 const b64u = (b) => Buffer.from(b).toString("base64url");

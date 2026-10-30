@@ -14,5 +14,9 @@ migrations_dir = "migrations"
 [vars]
 # a quién va dirigido el token de Apple/Google: la app de iPhone, la web, y los clientes de Google
 APPLE_AUDIENCES = "com.dineriko.app,com.dineriko.web"
+# "Lo he perdido todo": remitente de los emails (Resend) y la llave maestra PÚBLICA de Rodrigo.
+# La privada solo está en su gestor de contraseñas. Vacía = recuperación y panel desactivados.
+EMAIL_FROM = "Dineriko <hola@dineriko.com>"
+RECUPERACION_PUBLICA = ""
 GOOGLE_AUDIENCES = "597685036943-mp33seasru5jdhi5sf9rtjujq6u683uj.apps.googleusercontent.com,597685036943-s9hl86j69jbsabfsp1ul23rb7dpj29st.apps.googleusercontent.com"
 ALLOWED_ORIGINS = "https://dineriko.com,https://www.dineriko.com,https://revolutioner7.github.io,capacitor://localhost,http://localhost"

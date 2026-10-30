@@ -1,5 +1,22 @@
 import React, { useEffect, useRef, useState } from "react";
 import { conseguirToken, socialDisponible } from "../lib/social.js";
+import { PerdidoTodo, peticionGuardada, recuperacionDisponible, AjusteRecuperacion } from "./recuperacion.jsx";
+
+/* casilla del alta: "Lo he perdido todo" viene marcada; quien la desmarca no tiene recuperación posible */
+function CasillaRecuperacion({ valor, onCambio }) {
+  if (!recuperacionDisponible()) return null;
+  return (
+    <>
+      <label style={{ display: "flex", gap: 8, alignItems: "flex-start", margin: "4px 0 6px", fontSize: 13.5 }}>
+        <input type="checkbox" checked={valor} onChange={(e) => onCambio(e.target.checked)} style={{ marginTop: 3 }} />
+        <span>Si lo pierdo todo, quiero poder pedir que me devuelvan el acceso</span>
+      </label>
+      <p className="cg-hint">{valor
+        ? "Con 72 horas de espera, aviso por email y revisión a mano. Puedes cambiarlo cuando quieras en Ajustes."
+        : "Sin esto, si pierdes la contraseña y el código de recuperación, nadie podrá abrir tus datos. Ni nosotros."}</p>
+    </>
+  );
+}
 
 const NOMBRE = { apple: "Apple", google: "Google" };
 /* logo oficial de Google para el botón, tal cual lo da su generador de botones (lo aportó Rodrigo) */
@@ -83,7 +100,8 @@ function MostrarCodigo({ codigo, onListo }) {
 /* formulario de entrar / crear / recuperar. modo: "entrar" | "crear" | "recuperar" */
 /* después de Apple/Google: elegir el código de Dineriko (cuenta nueva), escribirlo (ya existe)
    o escribir la contraseña de la cuenta que ya había con ese email (queda unida) */
-function PasoSocial({ token, consulta, social, onCodigoNuevo, onVolver, onOlvidado }) {
+function PasoSocial({ token, consulta, social, onCodigoNuevo, onVolver, onOlvidado, onPerdido }) {
+  const [recuperacion, setRecuperacion] = useState(true);
   const [pass, setPass] = useState("");
   const [pass2, setPass2] = useState("");
   const [error, setError] = useState("");
@@ -97,7 +115,7 @@ function PasoSocial({ token, consulta, social, onCodigoNuevo, onVolver, onOlvida
     if (!listo || ocupado) return;
     setError(""); setOcupado(true);
     try {
-      if (nueva) onCodigoNuevo(await social.crear(token, pass));
+      if (nueva) onCodigoNuevo(await social.crear(token, pass, { recuperacion }));
       else await social.entrar(token, pass, consulta);
     } catch (e) {
       // el permiso de Apple/Google dura unos minutos: si ha caducado, hay que volver a tocar el botón
@@ -142,12 +160,14 @@ function PasoSocial({ token, consulta, social, onCodigoNuevo, onVolver, onOlvida
               : pass2.length > 0 && pass !== pass2 ? "No coinciden."
               : "Una frase que recuerdes vale más que una palabra rara. Tu gestor de contraseñas también puede guardarlo."}
           </p>
+          <CasillaRecuperacion valor={recuperacion} onCambio={setRecuperacion} />
         </>
       )}
       {error && <p className="cg-cuenta-error" role="alert">{error}</p>}
       <button className="cg-btn" disabled={!listo || ocupado} onClick={enviar}>{ocupado ? "Un momento…" : textos.boton}</button>
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, marginTop: 12 }}>
         {!nueva && <button className="cg-link" onClick={() => onOlvidado(consulta.email)}>Lo he olvidado</button>}
+        {!nueva && recuperacionDisponible() && <button className="cg-link" onClick={() => onPerdido(consulta.email)}>Lo he perdido todo</button>}
         <button className="cg-link" style={{ color: "var(--muted)" }} onClick={() => onVolver()}>Volver</button>
       </div>
     </div>
@@ -156,8 +176,10 @@ function PasoSocial({ token, consulta, social, onCodigoNuevo, onVolver, onOlvida
 
 /* social = { consultar(token), crear(token, codigo), entrar(token, secreto, consulta) } desde App.
    socialPendiente: token que llegó al volver de Apple/Google en la misma pestaña. */
-export function FormCuenta({ modoInicial = "entrar", onCrear, onEntrar, onRecuperar, onCancelar, textoCancelar = "Cancelar", social, socialPendiente }) {
-  const [modo, setModo] = useState(modoInicial);
+export function FormCuenta({ modoInicial = "entrar", onCrear, onEntrar, onRecuperar, onCancelar, textoCancelar = "Cancelar", social, socialPendiente, onRecuperada }) {
+  // si en este dispositivo hay una recuperación "Lo he perdido todo" en marcha, se retoma ahí
+  const [modo, setModo] = useState(() => (peticionGuardada() && onRecuperada ? "perdido" : modoInicial));
+  const [recuperacion, setRecuperacion] = useState(true);
   const [esperando, setEsperando] = useState(null); // "apple" | "google" mientras está su ventana
   const [conSocial, setConSocial] = useState(null);  // { token, consulta } tras volver de Apple/Google
   const intento = useRef(0);
@@ -211,8 +233,13 @@ export function FormCuenta({ modoInicial = "entrar", onCrear, onEntrar, onRecupe
       </div>
     );
   }
+  if (modo === "perdido") {
+    return <PerdidoTodo emailInicial={email} onVolver={() => { setModo("entrar"); setError(""); }}
+      onTerminada={({ sesion, codigo }) => setCodigoNuevo({ codigo, terminar: () => onRecuperada(sesion) })} />;
+  }
   if (conSocial) {
     return <PasoSocial {...conSocial} social={social} onCodigoNuevo={setCodigoNuevo}
+      onPerdido={(em) => { setConSocial(null); setEmail(em); setModo("perdido"); setError(""); }}
       onVolver={(err) => { setConSocial(null); setError(err ? mensajeError(err) : ""); }}
       onOlvidado={(email) => { setConSocial(null); setEmail(email); setModo("recuperar"); setError(""); }} />;
   }
@@ -226,7 +253,7 @@ export function FormCuenta({ modoInicial = "entrar", onCrear, onEntrar, onRecupe
     if (!listo || ocupado) return;
     setError(""); setOcupado(true);
     try {
-      if (modo === "crear") setCodigoNuevo(await onCrear(email.trim(), pass));
+      if (modo === "crear") setCodigoNuevo(await onCrear(email.trim(), pass, { recuperacion }));
       else if (modo === "entrar") await onEntrar(email.trim(), pass);
       else await onRecuperar(email.trim(), codigo, pass);
     } catch (e) {
@@ -287,9 +314,12 @@ export function FormCuenta({ modoInicial = "entrar", onCrear, onEntrar, onRecupe
               : "Una frase que recuerdes vale más que una palabra rara."}
           </p>
           {modo === "crear" && (
-            <p className="cg-hint" style={{ color: "var(--ink)" }}>
-              Ojo: si olvidas la contraseña, solo podrás entrar con el código de recuperación que te daremos ahora.
-            </p>
+            <>
+              <p className="cg-hint" style={{ color: "var(--ink)" }}>
+                Ojo: si olvidas la contraseña, podrás entrar con el código de recuperación que te daremos ahora.
+              </p>
+              <CasillaRecuperacion valor={recuperacion} onCambio={setRecuperacion} />
+            </>
           )}
         </>
       )}
@@ -303,6 +333,9 @@ export function FormCuenta({ modoInicial = "entrar", onCrear, onEntrar, onRecupe
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, marginTop: 12 }}>
         {hayBotones && conEmail && <button className="cg-link" onClick={() => { setConEmail(false); setError(""); }}>Entrar con Apple o Google</button>}
         {modo === "entrar" && verEmail && <button className="cg-link" onClick={() => { setModo("recuperar"); setError(""); }}>He olvidado la contraseña</button>}
+        {(modo === "recuperar" || (modo === "entrar" && verEmail)) && onRecuperada && recuperacionDisponible() && (
+          <button className="cg-link" onClick={() => { setModo("perdido"); setError(""); }}>{modo === "recuperar" ? "Tampoco tengo el código: lo he perdido todo" : "Lo he perdido todo"}</button>
+        )}
         {modo === "entrar" && onCrear && <button className="cg-link" onClick={() => { setModo("crear"); setError(""); }}>No tengo cuenta, quiero crearla</button>}
         {modo !== "entrar" && <button className="cg-link" onClick={() => { setModo("entrar"); setError(""); }}>Ya tengo cuenta</button>}
         {onCancelar && <button className="cg-link" style={{ color: "var(--muted)" }} onClick={() => onCancelar()}>{textoCancelar}</button>}
@@ -312,15 +345,15 @@ export function FormCuenta({ modoInicial = "entrar", onCrear, onEntrar, onRecupe
 }
 
 /* apartado de Ajustes */
-export function AjustesCuenta({ sesion, estado, onCrear, onEntrar, onRecuperar, onSalir, onBorrar, onSincronizar, social, socialPendiente }) {
-  const [abierto, setAbierto] = useState(socialPendiente ? "entrar" : null); // null | "crear" | "entrar" | "borrar"
+export function AjustesCuenta({ sesion, estado, onCrear, onEntrar, onRecuperar, onSalir, onBorrar, onSincronizar, social, socialPendiente, onRecuperada }) {
+  const [abierto, setAbierto] = useState(socialPendiente || peticionGuardada() ? "entrar" : null); // null | "crear" | "entrar" | "borrar"
   const [passBorrar, setPassBorrar] = useState("");
   const [errorBorrar, setErrorBorrar] = useState("");
 
   if (!sesion) {
     if (abierto) {
       return <FormCuenta modoInicial={abierto} onCrear={onCrear} onEntrar={onEntrar} onRecuperar={onRecuperar}
-        social={social} socialPendiente={socialPendiente} onCancelar={() => setAbierto(null)} />;
+        social={social} socialPendiente={socialPendiente} onRecuperada={onRecuperada} onCancelar={() => setAbierto(null)} />;
     }
     return (
       <div className="cg-cuenta">
@@ -370,6 +403,7 @@ export function AjustesCuenta({ sesion, estado, onCrear, onEntrar, onRecuperar, 
           <button className="cg-ghost danger" onClick={() => setAbierto("borrar")}>Borrar cuenta</button>
         </div>
       )}
+      {abierto !== "borrar" && <AjusteRecuperacion sesion={sesion} />}
     </div>
   );
 }

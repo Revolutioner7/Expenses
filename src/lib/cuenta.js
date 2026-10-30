@@ -11,6 +11,8 @@
    Cada gasto, ingreso, categoría, fijo o meta es un registro aparte, cifrado con la DEK.
    Así dos dispositivos pueden anotar a la vez sin pisarse. */
 
+import { prepararRepuesto, nuevoPar, abrirConRepuesto } from "./recuperacion.js";
+
 export const ITER_CUENTA = 600000;
 const te = new TextEncoder();
 const td = new TextDecoder();
@@ -184,14 +186,22 @@ export async function api(base, ruta, { token, body, method } = {}) {
    En los dos casos el secreto (contraseña o código de Dineriko) se trata igual. */
 const identidad = (q) => (q.provider ? { provider: q.provider, idToken: q.idToken, nonce: q.nonce } : { email: q.email });
 
-async function alta(base, quien, secreto) {
+/* opciones.maestra: llave pública de Rodrigo; si viene (y la persona no desmarca la casilla), se activa
+   "Lo he perdido todo" desde el alta */
+async function alta(base, quien, secreto, { maestra } = {}) {
   const sal = salAleatoria();
   const { authKey, kek } = await derivarDeContrasena(secreto, sal);
   const codigo = generarCodigo();
   const { recAuth, recKek } = await derivarDeCodigo(codigo);
   const dek = nuevaDEK();
   const wrapped = { pass: await envolver(dek, kek), rec: await envolver(dek, recKek) };
-  const r = await api(base, "/auth/register", { body: { ...identidad(quien), salt: sal, iter: ITER_CUENTA, authKey, recAuth, wrapped } });
+  let escrow;
+  if (maestra) {
+    const rep = await prepararRepuesto(dek, maestra);
+    wrapped.esc = rep.wrappedEsc;
+    escrow = rep.escrow;
+  }
+  const r = await api(base, "/auth/register", { body: { ...identidad(quien), salt: sal, iter: ITER_CUENTA, authKey, recAuth, wrapped, ...(escrow ? { escrow } : {}) } });
   const email = (r.email || quien.email).trim().toLowerCase();
   return { sesion: { email, token: r.token, dek: b64(dek), rev: 0, base: {}, ...(quien.provider ? { proveedor: quien.provider } : {}) }, codigo };
 }
@@ -205,7 +215,7 @@ async function entrada(base, quien, secreto, { salt, iter }) {
   return { email, token: r.token, dek: b64(dek), rev: 0, base: {}, ...(quien.provider ? { proveedor: quien.provider } : {}) };
 }
 
-export const crearCuenta = (base, email, contrasena) => alta(base, { email }, contrasena);
+export const crearCuenta = (base, email, contrasena, opciones) => alta(base, { email }, contrasena, opciones);
 
 export async function entrarCuenta(base, email, contrasena) {
   const params = await api(base, "/auth/prelogin", { body: { email } });
@@ -217,7 +227,7 @@ export async function entrarCuenta(base, email, contrasena) {
    consultarSocial dice qué toca: "nueva" (elegir código de Dineriko), "existe" (escribir el código)
    o "vincular" (ya hay cuenta con ese email: escribir su contraseña, y queda unida). */
 export const consultarSocial = (base, social) => api(base, "/auth/social", { body: identidad(social) });
-export const crearCuentaSocial = (base, social, codigoDineriko) => alta(base, social, codigoDineriko);
+export const crearCuentaSocial = (base, social, codigoDineriko, opciones) => alta(base, social, codigoDineriko, opciones);
 export const entrarCuentaSocial = (base, social, secreto, consulta) => entrada(base, social, secreto, consulta);
 
 /* contraseña olvidada: con el código se abre la llave de datos y se envuelve con la contraseña nueva */
@@ -311,4 +321,48 @@ export async function sincronizar(baseUrl, sesion, data, { ahora = Date.now(), t
   // la base se calcula sobre lo que queda de verdad en el dispositivo (el orden puede renumerarse al mezclar)
   const nuevaBase = Object.fromEntries(Object.entries(aplanar(datos)).map(([k, v]) => [k, huella(v)]));
   return { data: datos, sesion: { ...sesion, rev, base: nuevaBase, ultimaSync: ahora }, cambios, subidos: lista.length };
+}
+
+/* ── "Lo he perdido todo" ── */
+export const infoCuenta = (base, sesion) => api(base, "/account/info", { token: sesion.token, body: {} });
+
+async function pruebaDe(base, sesion, secreto) {
+  const { salt, iter } = await api(base, "/auth/prelogin", { body: { email: sesion.email } });
+  return (await derivarDeContrasena(secreto, salt, iter)).authKey;
+}
+export async function activarRecuperacion(base, sesion, secreto, maestra) {
+  const authKey = await pruebaDe(base, sesion, secreto);
+  const { wrappedEsc, escrow } = await prepararRepuesto(unb64(sesion.dek), maestra);
+  return api(base, "/account/escrow", { token: sesion.token, body: { authKey, escrow, wrappedEsc } });
+}
+export async function desactivarRecuperacion(base, sesion, secreto) {
+  const authKey = await pruebaDe(base, sesion, secreto);
+  return api(base, "/account/escrow", { token: sesion.token, body: { authKey, escrow: null } });
+}
+
+/* pedirla: el dispositivo guarda su llave de un solo uso (en el propio dispositivo, nunca sale)
+   junto con el identificador de la petición. Devuelve lo que hay que guardar. */
+export async function empezarRecuperacion(base, email) {
+  const par = await nuevoPar();
+  const { id, token } = await api(base, "/recovery/start", { body: { email, devicePub: par.publica } });
+  return { id, token, email: email.trim().toLowerCase(), privada: par.privada, desde: Date.now() };
+}
+export const estadoRecuperacion = (base, pend) => api(base, "/recovery/status", { body: { id: pend.id, token: pend.token } });
+
+/* terminarla, ya aprobada: abre la llave de datos y la envuelve con la contraseña (o código de Dineriko)
+   nueva y un código de recuperación nuevo. Devuelve { sesion, codigo }. */
+export async function completarRecuperacion(base, pend, nuevoSecreto, maestra) {
+  const st = await estadoRecuperacion(base, pend);
+  if (st.estado !== "aprobada") throw new ErrorCuenta("no-aprobada", 409);
+  let dek;
+  try { dek = await abrirConRepuesto(pend.privada, st.sello, st.s, st.wrappedEsc); } catch (e) { throw new ErrorCuenta("repuesto", 400); }
+  const sal = salAleatoria();
+  const { authKey, kek } = await derivarDeContrasena(nuevoSecreto, sal);
+  const codigo = generarCodigo();
+  const { recAuth, recKek } = await derivarDeCodigo(codigo);
+  // piezas nuevas: las de antes ya han pasado por este dispositivo
+  const { wrappedEsc, escrow } = await prepararRepuesto(dek, maestra);
+  const wrapped = { pass: await envolver(dek, kek), rec: await envolver(dek, recKek), esc: wrappedEsc };
+  const r = await api(base, "/recovery/complete", { body: { id: pend.id, token: pend.token, salt: sal, iter: ITER_CUENTA, authKey, recAuth, wrapped, escrow } });
+  return { sesion: { email: r.email, token: r.token, dek: b64(dek), rev: 0, base: {} }, codigo };
 }

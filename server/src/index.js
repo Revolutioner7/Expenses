@@ -22,6 +22,7 @@
      POST /auth/apple/callback (formulario que manda Apple en la web) → redirige a dineriko.com/oauth.html
 */
 import { verificarToken, FalloIdentidad, PROVEEDORES } from "./identidad.js";
+import { crearRutas } from "./recuperacion.js";
 
 const DIA = 86400000;
 const SESION_MS = 365 * DIA;
@@ -70,7 +71,7 @@ function normalizarEmail(e) {
 function validarEnvuelta(w) {
   if (!w || typeof w !== "object") throw new Fallo(400, "wrapped");
   for (const [k, v] of Object.entries(w)) {
-    if (!["pass", "rec"].includes(k) || !v || !esB64(v.iv, 8, 64) || !esB64(v.ct, 16, 512)) throw new Fallo(400, "wrapped");
+    if (!["pass", "rec", "esc"].includes(k) || !v || !esB64(v.iv, 8, 64) || !esB64(v.ct, 16, 512)) throw new Fallo(400, "wrapped");
   }
   return w;
 }
@@ -215,8 +216,12 @@ async function registrar(req, env) {
   if (existe) throw new Fallo(409, "email-en-uso");
   const id = b64url(aleatorio(16));
   const t = ahora();
-  const alta = env.DB.prepare("INSERT INTO users (id, email, kdf_salt, kdf_iter, auth_hash, rec_hash, wrapped, rev, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, 0, ?, ?)")
-    .bind(id, e, b.salt, b.iter, await hmac(env.PEPPER, b.authKey), await hmac(env.PEPPER, b.recAuth), JSON.stringify(wrapped), t, t);
+  // "Lo he perdido todo": viene activada salvo que la persona la desmarque (entonces no llega escrow)
+  const escrow = b.escrow ? rutasRec.validarEscrow(b.escrow) : null;
+  if (escrow && !wrapped.esc) throw new Fallo(400, "wrapped");
+  if (!escrow) delete wrapped.esc;
+  const alta = env.DB.prepare("INSERT INTO users (id, email, kdf_salt, kdf_iter, auth_hash, rec_hash, wrapped, escrow, rev, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?)")
+    .bind(id, e, b.salt, b.iter, await hmac(env.PEPPER, b.authKey), await hmac(env.PEPPER, b.recAuth), JSON.stringify(wrapped), escrow ? JSON.stringify(escrow) : null, t, t);
   await env.DB.batch(ident ? [alta, unirIdentidad(env, ident, id)] : [alta]);
   return { token: await crearSesion(env, id, req), email: e };
 }
@@ -336,10 +341,13 @@ async function borrarCuenta(req, env) {
     env.DB.prepare("DELETE FROM items WHERE user_id = ?").bind(userId),
     env.DB.prepare("DELETE FROM sessions WHERE user_id = ?").bind(userId),
     env.DB.prepare("DELETE FROM identities WHERE user_id = ?").bind(userId),
+    env.DB.prepare("DELETE FROM recoveries WHERE user_id = ?").bind(userId),
     env.DB.prepare("DELETE FROM users WHERE id = ?").bind(userId),
   ]);
   return {};
 }
+
+const rutasRec = crearRutas({ Fallo, leerJson, usuarioDeSesion, normalizarEmail, hmac, igual, crearSesion, validarEnvuelta, validarIter, esB64, ahora });
 
 const RUTAS = {
   "POST /auth/prelogin": prelogin,
@@ -353,6 +361,7 @@ const RUTAS = {
   "POST /sync": subir,
   "POST /account/delete": borrarCuenta,
   "GET /health": async () => ({ ok: true }),
+  ...Object.fromEntries(Object.entries(rutasRec.post).map(([r, f]) => [`POST ${r}`, f])),
 };
 
 export default {
@@ -363,6 +372,11 @@ export default {
     const ruta = RUTAS[`${req.method} ${url.pathname}`];
     if (req.method === "POST" && url.pathname === "/auth/apple/callback") {
       try { return await callbackApple(req, env); } catch (e) { console.error(e); return new Response("Error", { status: 500 }); }
+    }
+    const paginaRec = rutasRec.paginas[url.pathname];
+    if (paginaRec && (req.method === "GET" || req.method === "POST")) {
+      if (!env.PEPPER) return new Response("Servidor sin configurar", { status: 500 });
+      try { return await paginaRec(req, env, url); } catch (e) { console.error(e); return new Response("Algo ha fallado. Prueba en un rato.", { status: 500 }); }
     }
     if (!ruta) return json({ error: "no-existe" }, 404, cors);
     if (!env.PEPPER || env.PEPPER.length < 32) return json({ error: "servidor-sin-configurar" }, 500, cors);

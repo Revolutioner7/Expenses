@@ -17,6 +17,9 @@ export const cuentasDisponibles = () => !API_URL.includes("REEMPLAZA-ESTO");
 export const APPLE_SERVICE_ID = "com.dineriko.web";
 export const GOOGLE_WEB_CLIENT_ID = "597685036943-mp33seasru5jdhi5sf9rtjujq6u683uj.apps.googleusercontent.com";
 export const GOOGLE_IOS_CLIENT_ID = "597685036943-s9hl86j69jbsabfsp1ul23rb7dpj29st.apps.googleusercontent.com";
+/* llave maestra PÚBLICA de Rodrigo para "Lo he perdido todo" (la privada solo la tiene él).
+   null = la recuperación no se ofrece todavía. Tiene que coincidir con RECUPERACION_PUBLICA del servidor. */
+export const RECUPERACION_PUBLICA = null;
 export const PLAY_STORE_URL = "https://play.google.com/store/apps/details?id=REEMPLAZA-ESTO";
 // El nombre visible de la app, en un único sitio — cambiarlo aquí basta para todo el JS.
 // index.html, manifest.webmanifest y sw.js son archivos estáticos aparte y no leen esta

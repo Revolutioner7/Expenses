@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef, useCallback } from "react";
 
-import { API_URL, cuentasDisponibles } from "./constants.js";
+import { API_URL, cuentasDisponibles, RECUPERACION_PUBLICA } from "./constants.js";
 import { crearCuenta, entrarCuenta, recuperarConCodigo, salirCuenta, borrarCuenta, sincronizar, consultarSocial, crearCuentaSocial, entrarCuentaSocial } from "./lib/cuenta.js";
 import { pendienteSocial } from "./lib/social.js";
+import { PanelRecuperaciones } from "./components/recuperacion.jsx";
 import { AjustesCuenta } from "./components/cuenta.jsx";
 import { STORE_KEY, ONBOARD_KEY, WORKER_URL, APP_VERSION, APP_NAME, BUCKETS, DEFAULT_CATEGORIES, DEFAULT_BANCOS } from "./constants.js";
 import { store } from "./lib/storage.js";
@@ -238,8 +239,10 @@ export default function App() {
     return () => { document.removeEventListener("visibilitychange", alVolver); window.removeEventListener("online", sincronizarAhora); };
   }, []);
   const ponerSesion = (sesion) => { setEstadoSync({ fase: "ok" }); setData((d) => ({ ...d, _cuenta: sesion })); };
-  const cuentaCrear = async (email, pass) => {
-    const { sesion, codigo } = await crearCuenta(API_URL, email, pass);
+  // "Lo he perdido todo" va activada salvo que la persona desmarque la casilla del alta
+  const maestraSi = (o) => (o?.recuperacion === false ? null : RECUPERACION_PUBLICA);
+  const cuentaCrear = async (email, pass, opciones) => {
+    const { sesion, codigo } = await crearCuenta(API_URL, email, pass, { maestra: maestraSi(opciones) });
     return { codigo, terminar: () => ponerSesion(sesion) };
   };
   const cuentaEntrar = async (email, pass) => ponerSesion(await entrarCuenta(API_URL, email, pass));
@@ -247,8 +250,8 @@ export default function App() {
   /* entrar con Apple o Google: el token lo consigue FormCuenta; aquí se habla con el servidor */
   const cuentaSocial = useMemo(() => ({
     consultar: (token) => consultarSocial(API_URL, token),
-    crear: async (token, codigoDineriko) => {
-      const { sesion, codigo } = await crearCuentaSocial(API_URL, token, codigoDineriko);
+    crear: async (token, codigoDineriko, opciones) => {
+      const { sesion, codigo } = await crearCuentaSocial(API_URL, token, codigoDineriko, { maestra: maestraSi(opciones) });
       return { codigo, terminar: () => ponerSesion(sesion) };
     },
     entrar: async (token, secreto, consulta) => ponerSesion(await entrarCuentaSocial(API_URL, token, secreto, consulta)),
@@ -1519,7 +1522,7 @@ export default function App() {
   if (onboard.status === "install" || onboard.status === "consent") {
     return <Onboarding startStep={onboard.status} onDone={finishOnboarding} bancos={bancos} masUsadoBancoId={usoFormaPago.masUsadoBancoId} onAddBanco={saveBanco}
       cuentas={cuentasDisponibles()} onEntrarCuenta={cuentaEntrar} onRecuperarCuenta={cuentaRecuperar}
-      social={cuentaSocial} socialPendiente={socialPendiente} />;
+      social={cuentaSocial} socialPendiente={socialPendiente} onRecuperada={ponerSesion} />;
   }
 
   if (locked) {
@@ -2360,7 +2363,7 @@ export default function App() {
                   estado={data._cuenta?.caducada ? { fase: "caducada" } : estadoSync}
                   onCrear={cuentaCrear} onEntrar={cuentaEntrar} onRecuperar={cuentaRecuperar}
                   onSalir={cuentaSalir} onBorrar={cuentaBorrar} onSincronizar={sincronizarAhora}
-                  social={cuentaSocial} socialPendiente={data._cuenta ? null : socialPendiente} />
+                  social={cuentaSocial} socialPendiente={data._cuenta ? null : socialPendiente} onRecuperada={ponerSesion} />
               </GrupoAjustes>
             )}
 
@@ -2679,6 +2682,12 @@ export default function App() {
                         estable y, si hiciera falta, restaura la copia que guardaste al entrar.
                       </p>
                       <button className="cg-ghost" onClick={volverAEstable}>Volver a la estable</button>
+                      {cuentasDisponibles() && (
+                        <details style={{ marginTop: 14 }}>
+                          <summary style={{ fontSize: 13, fontWeight: 700, cursor: "pointer" }}>Recuperaciones (administrador)</summary>
+                          <div style={{ marginTop: 8 }}><PanelRecuperaciones /></div>
+                        </details>
+                      )}
                     </>
                   ) : (
                     <>

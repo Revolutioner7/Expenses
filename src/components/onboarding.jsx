@@ -68,7 +68,7 @@ function Pregunta({ paso, onBack, titulo, sub, children }) {
   );
 }
 
-export function Onboarding({ startStep, onDone, bancos, masUsadoBancoId, onAddBanco, cuentas, onEntrarCuenta, onRecuperarCuenta, social, socialPendiente }) {
+export function Onboarding({ startStep, onDone, bancos, masUsadoBancoId, onAddBanco, cuentas, onEntrarCuenta, onRecuperarCuenta, social, socialPendiente, onRecuperada }) {
   const [step, setStep] = useState(socialPendiente && startStep === "consent" ? "cuenta" : startStep); // 'install' | 'consent' | 'cuenta' | 'vista' | 'difpago' | 'pago' | 'periodicos'
   const [accepted, setAccepted] = useState(false);
   const [email, setEmail] = useState("");
@@ -164,6 +164,7 @@ export function Onboarding({ startStep, onDone, bancos, masUsadoBancoId, onAddBa
               entrar: async (t, sec, c) => { await social.entrar(t, sec, c); onDone(c.email, null, null, null, null); },
             }}
             socialPendiente={socialPendiente}
+            onRecuperada={onRecuperada && ((sesion) => { onRecuperada(sesion); onDone(sesion.email, null, null, null, null); })}
             // cuenta nueva con Apple/Google desde aquí: después del código de recuperación, las preguntas de siempre
             onCancelar={(motivo) => setStep(motivo === "listo" ? "vista" : "consent")} />
         </div>
