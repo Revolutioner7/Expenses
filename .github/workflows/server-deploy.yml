@@ -75,6 +75,17 @@ jobs:
             echo "::warning::PEPPER creado al azar y sin copia. Guarda uno en SERVER_PEPPER."
           fi
 
+      - name: Clave de Resend (emails de la recuperación)
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+        run: |
+          if [ -n "$RESEND_API_KEY" ]; then
+            printf '%s' "$RESEND_API_KEY" | npx wrangler secret put RESEND_API_KEY
+            sleep 20
+          else
+            echo "::warning::Falta el secreto RESEND_API_KEY: 'Lo he perdido todo' no podrá enviar emails."
+          fi
+
       - name: Comprobar que responde
         run: |
           url=$(grep -oE "https://[a-z0-9.-]+\.workers\.dev" deploy.log | head -1)
