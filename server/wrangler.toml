@@ -17,6 +17,6 @@ APPLE_AUDIENCES = "com.dineriko.app,com.dineriko.web"
 # "Lo he perdido todo": remitente de los emails (Resend) y la llave maestra PÚBLICA de Rodrigo.
 # La privada solo está en su gestor de contraseñas. Vacía = recuperación y panel desactivados.
 EMAIL_FROM = "Dineriko <hola@dineriko.com>"
-RECUPERACION_PUBLICA = ""
+RECUPERACION_PUBLICA = '{"kty":"EC","crv":"P-256","x":"P_v3RrMnaGe8QmK4mVyg-q_8czm981rDAgPK4cr3MQY","y":"z_f8lT4z80jYI4odIXUIw3sU-pO4Xum_A2AqDvkJ56g"}'
 GOOGLE_AUDIENCES = "597685036943-mp33seasru5jdhi5sf9rtjujq6u683uj.apps.googleusercontent.com,597685036943-s9hl86j69jbsabfsp1ul23rb7dpj29st.apps.googleusercontent.com"
 ALLOWED_ORIGINS = "https://dineriko.com,https://www.dineriko.com,https://revolutioner7.github.io,capacitor://localhost,http://localhost"
