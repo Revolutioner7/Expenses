@@ -168,6 +168,7 @@ export function FormCuenta({ modoInicial = "entrar", onCrear, onEntrar, onRecupe
   const [error, setError] = useState("");
   const [ocupado, setOcupado] = useState(false);
   const [codigoNuevo, setCodigoNuevo] = useState(null);
+  const [conEmail, setConEmail] = useState(false); // con Apple/Google disponibles, el email es el tercer botón
 
   // la sesión no se activa hasta que confirma que ha guardado el código: si no, la pantalla del código
   // desaparecería al instante (el apartado pasa a "cuenta activa")
@@ -235,6 +236,8 @@ export function FormCuenta({ modoInicial = "entrar", onCrear, onEntrar, onRecupe
     }
   };
 
+  const hayBotones = !!social && modo !== "recuperar" && (socialDisponible("apple") || socialDisponible("google"));
+  const verEmail = !hayBotones || conEmail;
   const titulo = { crear: "Crea tu cuenta", entrar: "Entra en tu cuenta", recuperar: "Contraseña nueva" }[modo];
   const intro = {
     crear: "Tus gastos se guardan cifrados con tu contraseña. Ni nosotros podemos leerlos.",
@@ -246,7 +249,7 @@ export function FormCuenta({ modoInicial = "entrar", onCrear, onEntrar, onRecupe
     <div className="cg-cuenta-form" onKeyDown={(e) => e.key === "Enter" && enviar()}>
       <h3 style={{ fontSize: 17, fontWeight: 700, margin: "0 0 4px" }}>{titulo}</h3>
       <p className="cg-hint" style={{ marginBottom: 14 }}>{intro}</p>
-      {social && modo !== "recuperar" && (socialDisponible("apple") || socialDisponible("google")) && (
+      {hayBotones && !conEmail && (
         <div className="cg-social">
           {socialDisponible("apple") && (
             <button className="cg-social-btn apple" disabled={ocupado} onClick={() => tocarSocial("apple")}>
@@ -258,9 +261,12 @@ export function FormCuenta({ modoInicial = "entrar", onCrear, onEntrar, onRecupe
               <LogoGoogle />Continuar con Google
             </button>
           )}
-          <p className="cg-social-o"><span>o con tu email</span></p>
+          <button className="cg-social-btn email" disabled={ocupado} onClick={() => { setConEmail(true); setError(""); }}>
+            <i className="ti ti-mail cg-social-logo" aria-hidden="true" />Continuar con email
+          </button>
         </div>
       )}
+      {verEmail && (<>
       <Campo id="cg-cuenta-email" etiqueta="Email" type="email" autoComplete="email" inputMode="email"
         value={email} onChange={(e) => setEmail(e.target.value)} />
       {modo === "recuperar" && (
@@ -285,12 +291,16 @@ export function FormCuenta({ modoInicial = "entrar", onCrear, onEntrar, onRecupe
           )}
         </>
       )}
+      </>)}
       {error && <p className="cg-cuenta-error" role="alert">{error}</p>}
-      <button className="cg-btn" disabled={!listo || ocupado} onClick={enviar}>
-        {ocupado ? "Un momento…" : { crear: "Crear cuenta", entrar: "Entrar", recuperar: "Guardar contraseña nueva" }[modo]}
-      </button>
+      {verEmail && (
+        <button className="cg-btn" disabled={!listo || ocupado} onClick={enviar}>
+          {ocupado ? "Un momento…" : { crear: "Crear cuenta", entrar: "Entrar", recuperar: "Guardar contraseña nueva" }[modo]}
+        </button>
+      )}
       <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 4, marginTop: 12 }}>
-        {modo === "entrar" && <button className="cg-link" onClick={() => { setModo("recuperar"); setError(""); }}>He olvidado la contraseña</button>}
+        {hayBotones && conEmail && <button className="cg-link" onClick={() => { setConEmail(false); setError(""); }}>Entrar con Apple o Google</button>}
+        {modo === "entrar" && verEmail && <button className="cg-link" onClick={() => { setModo("recuperar"); setError(""); }}>He olvidado la contraseña</button>}
         {modo === "entrar" && onCrear && <button className="cg-link" onClick={() => { setModo("crear"); setError(""); }}>No tengo cuenta, quiero crearla</button>}
         {modo !== "entrar" && <button className="cg-link" onClick={() => { setModo("entrar"); setError(""); }}>Ya tengo cuenta</button>}
         {onCancelar && <button className="cg-link" style={{ color: "var(--muted)" }} onClick={() => onCancelar()}>{textoCancelar}</button>}

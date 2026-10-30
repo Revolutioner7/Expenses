@@ -40,11 +40,17 @@ function social(estado, extra = {}) {
 }
 
 describe("Entrar con Apple o Google", () => {
-  it("salen los dos botones encima del email", async () => {
+  it("salen tres botones: Apple, Google y email", async () => {
     await pinta(<FormCuenta modoInicial="crear" onCrear={async () => {}} social={social("nueva")} />);
     expect(boton("Continuar con Google")).toBeTruthy();
     expect(cont.textContent).toContain("Continuar con Apple");
-    expect(cont.textContent).toContain("o con tu email");
+    expect(boton("Continuar con email")).toBeTruthy();
+    // el formulario de email no aparece hasta tocar el tercer botón
+    expect(cont.querySelector("#cg-cuenta-email")).toBeNull();
+    await toca("Continuar con email");
+    expect(cont.querySelector("#cg-cuenta-email")).toBeTruthy();
+    await toca("Entrar con Apple o Google");
+    expect(cont.querySelector("#cg-cuenta-email")).toBeNull();
   });
 
   it("cuenta nueva: pide elegir el código de Dineriko (dos veces, mínimo 10) y enseña el código de recuperación", async () => {

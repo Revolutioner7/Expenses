@@ -84,6 +84,12 @@ jobs:
           echo "Clave privada válida."
           sed "s/__TEAM_ID__/${TEAM_ID}/" ios/ci/ExportOptions.plist > "$RUNNER_TEMP/ExportOptions.plist"
 
+      - name: Liberar certificados de desarrollo viejos
+        # cada Mac de GitHub crea uno nuevo y Apple tiene un tope (ver scripts/liberar-certificados.mjs)
+        env:
+          ASC_KEY_PATH: ${{ runner.temp }}/asc/AuthKey_${{ secrets.APPSTORE_KEY_ID }}.p8
+        run: node scripts/liberar-certificados.mjs
+
       - name: Fabricar (archive)
         run: |
           set +e
