@@ -262,7 +262,9 @@ export function FormCuenta({ modoInicial = "entrar", onCrear, onEntrar, onRecupe
             </button>
           )}
           <button className="cg-social-btn email" disabled={ocupado} onClick={() => { setConEmail(true); setError(""); }}>
-            <i className="ti ti-mail cg-social-logo" aria-hidden="true" />Continuar con email
+            <svg className="cg-social-logo-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3 7l9 6 9-6" />
+            </svg>Continuar con Email
           </button>
         </div>
       )}

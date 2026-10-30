@@ -44,10 +44,10 @@ describe("Entrar con Apple o Google", () => {
     await pinta(<FormCuenta modoInicial="crear" onCrear={async () => {}} social={social("nueva")} />);
     expect(boton("Continuar con Google")).toBeTruthy();
     expect(cont.textContent).toContain("Continuar con Apple");
-    expect(boton("Continuar con email")).toBeTruthy();
+    expect(boton("Continuar con Email")).toBeTruthy();
     // el formulario de email no aparece hasta tocar el tercer botón
     expect(cont.querySelector("#cg-cuenta-email")).toBeNull();
-    await toca("Continuar con email");
+    await toca("Continuar con Email");
     expect(cont.querySelector("#cg-cuenta-email")).toBeTruthy();
     await toca("Entrar con Apple o Google");
     expect(cont.querySelector("#cg-cuenta-email")).toBeNull();
