@@ -1,12 +1,12 @@
 /* Dineriko — funciona sin conexión */
-const CACHE = 'dineriko-v13';
+const CACHE = 'dineriko-v14';
 const SHELL = [
   './',
   './index.html',
-  './boot.js?v=13',
-  './bundle.js?v=13',
-  './bundle-beta.js?v=13',
-  './styles.css?v=13',
+  './boot.js?v=14',
+  './bundle.js?v=14',
+  './bundle-beta.js?v=14',
+  './styles.css?v=14',
   './manifest.webmanifest',
   './icon-192.png',
   './icon-512.png',
@@ -44,6 +44,10 @@ self.addEventListener('fetch', (e) => {
   if (req.method !== 'GET') return;
 
   // navegación: primero la red, y si no hay, la copia guardada
+  // (solo la app en sí: privacidad.html u oauth.html no deben guardarse como si fueran la app)
+  const ruta = new URL(req.url).pathname;
+  const esApp = ruta.endsWith('/') || ruta.endsWith('/index.html');
+  if (req.mode === 'navigate' && !esApp) return;
   if (req.mode === 'navigate') {
     e.respondWith(
       conLimite(req, 1500)
