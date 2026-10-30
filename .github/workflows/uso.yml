@@ -1,0 +1,60 @@
+# Cuenta cada día cuánta gente usa Dineriko con cuenta, para saber cuándo "despega".
+# Solo cuenta filas que el servidor ya tiene (cuentas y última vez que se usó cada una):
+# no mira ningún dato, que además están cifrados, ni añade seguimiento de ningún tipo.
+# Si se cruza un umbral, el procedimiento falla a propósito: GitHub manda un email a Rodrigo.
+# Umbrales decididos por Rodrigo el 30 oct 2026: 50 personas activas con cuenta en 30 días,
+# o más de 10 cuentas nuevas en un día (señal de que alguien la ha compartido).
+name: Uso · ¿despega Dineriko?
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "17 6 * * *" # cada día, 7:17 u 8:17 en Barcelona
+
+jobs:
+  contar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: server
+    env:
+      CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+      CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+      UMBRAL_ACTIVOS: 50
+      UMBRAL_NUEVAS_DIA: 10
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          ref: beta
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+
+      - run: npm ci
+
+      - name: Contar
+        run: |
+          id=$(npx wrangler d1 list --json 2>/dev/null | jq -r '.[] | select(.name=="dineriko") | .uuid' | head -1)
+          [ -n "$id" ] || { echo "::error::No encuentro la base de datos"; exit 1; }
+          sed -i "s/^database_id = .*/database_id = \"$id\"/" wrangler.toml
+          ahora=$(( $(date +%s) * 1000 )); dia=86400000
+          sql="SELECT
+            (SELECT COUNT(*) FROM users) AS cuentas,
+            (SELECT COUNT(DISTINCT user_id) FROM sessions WHERE last_used > $ahora - 30*$dia) AS activos,
+            (SELECT COUNT(DISTINCT user_id) FROM sessions WHERE last_used > $ahora - 31*$dia AND last_used <= $ahora - $dia) AS activos_ayer,
+            (SELECT COUNT(*) FROM users WHERE created_at > $ahora - $dia) AS nuevas_24h"
+          r=$(npx wrangler d1 execute dineriko --remote --json --command "$sql" | jq -c '.[0].results[0]')
+          echo "Resultado: $r"
+          cuentas=$(jq -r .cuentas <<<"$r"); activos=$(jq -r .activos <<<"$r")
+          ayer=$(jq -r .activos_ayer <<<"$r"); nuevas=$(jq -r .nuevas_24h <<<"$r")
+          echo "::notice::Cuentas: $cuentas · activas en 30 días: $activos · nuevas en 24 h: $nuevas"
+          aviso=""
+          if [ "$activos" -ge "$UMBRAL_ACTIVOS" ] && [ "$ayer" -lt "$UMBRAL_ACTIVOS" ]; then
+            aviso="Dineriko ha llegado a $activos personas activas con cuenta. Toca repasar la lista 'Si Dineriko despega' en Notion."
+          fi
+          if [ "$nuevas" -gt "$UMBRAL_NUEVAS_DIA" ]; then
+            aviso="$aviso Se han creado $nuevas cuentas en las últimas 24 horas: puede que alguien haya compartido la app."
+          fi
+          if [ -n "$aviso" ]; then echo "::error::$aviso"; exit 1; fi
