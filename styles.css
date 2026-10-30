@@ -284,6 +284,7 @@ label.cg-lab{display:block;font-family:var(--mono);font-size:10px;letter-spacing
 .cg-social-btn.google{background:#fff;color:#1f1f1f;border:1px solid #747775;}
 .cg-social-btn[disabled]{opacity:.5;cursor:not-allowed;}
 .cg-social-logo{font-size:17px;line-height:1;margin-top:-2px;}
+.cg-social-logo-svg{width:18px;height:18px;margin-right:4px;flex:none;}
 .cg-social-o{display:flex;align-items:center;gap:10px;color:var(--muted);font-size:12.5px;margin:8px 0 10px;}
 .cg-social-o::before,.cg-social-o::after{content:"";flex:1;height:1px;background:var(--line);}
 .cg-link[disabled]{opacity:.45;cursor:not-allowed;}
