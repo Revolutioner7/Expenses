@@ -68,7 +68,8 @@ public class DinerikoSocialPlugin: CAPPlugin, CAPBridgedPlugin, ASAuthorizationC
         if let e = error as? ASAuthorizationError, e.code == .canceled {
             llamadaApple?.reject("cancelado", "1001")
         } else {
-            llamadaApple?.reject(error.localizedDescription)
+            let ns = error as NSError
+            llamadaApple?.reject("apple \(ns.domain) \(ns.code): \(ns.localizedDescription)", String(ns.code))
         }
         llamadaApple = nil
     }
@@ -111,7 +112,8 @@ public class DinerikoSocialPlugin: CAPPlugin, CAPBridgedPlugin, ASAuthorizationC
                       let items = URLComponents(url: vueltaUrl, resolvingAgainstBaseURL: false)?.queryItems,
                       items.first(where: { $0.name == "state" })?.value == estado,
                       let codigo = items.first(where: { $0.name == "code" })?.value else {
-                    call.reject(error?.localizedDescription ?? "sin-codigo"); return
+                    let ns = error.map { $0 as NSError }
+                    call.reject("google vuelta: " + (ns.map { "\($0.domain) \($0.code) \($0.localizedDescription)" } ?? "sin código")); return
                 }
                 self?.canjear(call: call, clientId: clientId, codigo: codigo, verificador: verificador, vuelta: vuelta)
             }
@@ -139,7 +141,8 @@ public class DinerikoSocialPlugin: CAPPlugin, CAPBridgedPlugin, ASAuthorizationC
             guard let datos = datos,
                   let json = try? JSONSerialization.jsonObject(with: datos) as? [String: Any],
                   let token = json["id_token"] as? String else {
-                call.reject(error?.localizedDescription ?? "canje-fallido"); return
+                let cuerpo = datos.flatMap { String(data: $0, encoding: .utf8) } ?? ""
+                call.reject("google canje: " + (error?.localizedDescription ?? String(cuerpo.prefix(150)))); return
             }
             call.resolve(["idToken": token])
         }.resume()

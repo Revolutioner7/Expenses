@@ -182,7 +182,7 @@ export function FormCuenta({ modoInicial = "entrar", onCrear, onEntrar, onRecupe
     } catch (e) {
       if (mio !== intento.current) return;
       setEsperando(null);
-      if (e?.codigo !== "cancelado") setError(mensajeError(e));
+      if (e?.codigo !== "cancelado") setError(mensajeError(e) + (e?.detalle ? ` (${e.detalle})` : ""));
     }
   };
   // vuelta de Apple/Google en la misma pestaña (el navegador bloqueó la ventana)

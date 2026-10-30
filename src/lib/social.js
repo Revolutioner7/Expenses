@@ -13,7 +13,7 @@ const CANAL = "dineriko-oauth";
 const CADUCA_MS = 10 * 60000;
 
 export class ErrorSocial extends Error {
-  constructor(codigo) { super(codigo); this.codigo = codigo; }
+  constructor(codigo, detalle) { super(codigo); this.codigo = codigo; this.detalle = detalle; }
 }
 
 const aleatorio = (n) => btoa(String.fromCharCode(...crypto.getRandomValues(new Uint8Array(n)))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
@@ -101,7 +101,9 @@ async function nativoSocial(provider) {
     return { provider, idToken: r.idToken, nonce };
   } catch (e) {
     if (e instanceof ErrorSocial) throw e;
-    throw new ErrorSocial(/cancel/i.test(e?.message || "") || String(e?.code) === "1001" ? "cancelado" : "social");
+    // el detalle (código y mensaje del sistema) se enseña en pequeño para poder diagnosticar
+    throw new ErrorSocial(/cancel/i.test(e?.message || "") || String(e?.code) === "1001" ? "cancelado" : "social",
+      [e?.code, e?.message].filter(Boolean).join(" · ").slice(0, 200));
   }
 }
 
