@@ -1,7 +1,7 @@
 /* Cada Mac de GitHub es nuevo y vacío, así que Xcode crea un certificado de desarrollo en cada
    compilación y nunca reutiliza el anterior. Apple limita cuántos puede haber, y al llegar al tope
    la compilación falla ("Your account has reached the maximum number of certificates").
-   Este script revoca, antes de compilar, los certificados de DESARROLLO que creó Xcode con la
+   Este script revoca, antes de compilar y solo cuando ya hay 8 o más, los certificados de DESARROLLO que creó Xcode con la
    clave de la API ("Created via API"). Nunca toca los de distribución ni los creados a mano.
    Revocar uno de desarrollo no afecta a la app publicada ni a TestFlight.
 
@@ -31,6 +31,13 @@ if (!r.ok) {
 const { data } = await r.json();
 const deXcode = data.filter((c) => /created via api/i.test(c.attributes?.name || "") || /created via api/i.test(c.attributes?.displayName || ""));
 console.log(`::notice::Certificados de desarrollo: ${data.length} (${data.map((c) => c.attributes?.displayName || c.attributes?.name).join(" | ")}); creados por Xcode con la API: ${deXcode.length}`);
+// cada revocación manda un email a Rodrigo: solo se limpia al acercarse al tope (Apple corta en 10),
+// así llega una tanda de emails cada varias versiones en lugar de uno por versión
+const UMBRAL = 8;
+if (data.length < UMBRAL) {
+  console.log(`::notice::Hay ${data.length} certificados de desarrollo; no se revoca nada hasta llegar a ${UMBRAL}.`);
+  process.exit(0);
+}
 for (const c of deXcode) {
   const d = await fetch(`${API}/certificates/${c.id}`, { method: "DELETE", headers: cabeceras });
   console.log(`::notice::${d.ok ? "Revocado" : `No se pudo revocar (${d.status})`}: ${c.attributes?.displayName || c.attributes?.name} · caduca ${c.attributes?.expirationDate?.slice(0, 10)}`);
