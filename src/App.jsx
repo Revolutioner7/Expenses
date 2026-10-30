@@ -2724,7 +2724,7 @@ export default function App() {
           </>
         )}
 
-        <div className="cg-foot">Tus datos se guardan solo en este dispositivo</div>
+        <div className="cg-foot">{data._cuenta ? "Tus datos viajan cifrados: solo tú puedes leerlos" : "Tus datos se guardan solo en este dispositivo"}</div>
       </div>
 
       {sheet?.type === "cat" && (
