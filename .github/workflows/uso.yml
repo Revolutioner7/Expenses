@@ -1,7 +1,8 @@
 # Cuenta cada día cuánta gente usa Dineriko con cuenta, para saber cuándo "despega".
 # Solo cuenta filas que el servidor ya tiene (cuentas y última vez que se usó cada una):
 # no mira ningún dato, que además están cifrados, ni añade seguimiento de ningún tipo.
-# Si se cruza un umbral, el procedimiento falla a propósito: GitHub manda un email a Rodrigo.
+# Si se cruza un umbral, o hay recuperaciones esperando su aprobación, el procedimiento falla a
+# propósito: GitHub manda un email a Rodrigo.
 # Umbrales decididos por Rodrigo el 30 oct 2026: 50 personas activas con cuenta en 30 días,
 # o más de 10 cuentas nuevas en un día (señal de que alguien la ha compartido).
 name: Uso · ¿despega Dineriko?
@@ -44,11 +45,12 @@ jobs:
             (SELECT COUNT(*) FROM users) AS cuentas,
             (SELECT COUNT(DISTINCT user_id) FROM sessions WHERE last_used > $ahora - 30*$dia) AS activos,
             (SELECT COUNT(DISTINCT user_id) FROM sessions WHERE last_used > $ahora - 31*$dia AND last_used <= $ahora - $dia) AS activos_ayer,
-            (SELECT COUNT(*) FROM users WHERE created_at > $ahora - $dia) AS nuevas_24h"
+            (SELECT COUNT(*) FROM users WHERE created_at > $ahora - $dia) AS nuevas_24h,
+            (SELECT COUNT(*) FROM recoveries WHERE estado = 'esperando' AND ready_at <= $ahora) AS por_aprobar"
           r=$(npx wrangler d1 execute dineriko --remote --json --command "$sql" | jq -c '.[0].results[0]')
           echo "Resultado: $r"
           cuentas=$(jq -r .cuentas <<<"$r"); activos=$(jq -r .activos <<<"$r")
-          ayer=$(jq -r .activos_ayer <<<"$r"); nuevas=$(jq -r .nuevas_24h <<<"$r")
+          ayer=$(jq -r .activos_ayer <<<"$r"); nuevas=$(jq -r .nuevas_24h <<<"$r"); poraprobar=$(jq -r .por_aprobar <<<"$r")
           echo "::notice::Cuentas: $cuentas · activas en 30 días: $activos · nuevas en 24 h: $nuevas"
           aviso=""
           if [ "$activos" -ge "$UMBRAL_ACTIVOS" ] && [ "$ayer" -lt "$UMBRAL_ACTIVOS" ]; then
@@ -56,5 +58,9 @@ jobs:
           fi
           if [ "$nuevas" -gt "$UMBRAL_NUEVAS_DIA" ]; then
             aviso="$aviso Se han creado $nuevas cuentas en las últimas 24 horas: puede que alguien haya compartido la app."
+          fi
+          # "Lo he perdido todo": peticiones que ya han pasado las 72 horas y esperan tu aprobación
+          if [ "$poraprobar" -gt 0 ]; then
+            aviso="$aviso Hay $poraprobar recuperación(es) 'Lo he perdido todo' esperando tu aprobación: Ajustes → Ayuda y app → Canal beta → Recuperaciones."
           fi
           if [ -n "$aviso" ]; then echo "::error::$aviso"; exit 1; fi
