@@ -287,9 +287,12 @@ export function Donut({ slices, total, onPick }) {
             </text>
           );
         })}
-        <text className="cg-dnum" x="100" y={active ? 95 : 97} textAnchor="middle">
-          {eur(active ? active.total : total)} €
-        </text>
+        {/* la cifra se encoge si no cabe en el hueco del anillo (unas 92 unidades útiles; la letra es monoespaciada, ~0,6 em por carácter) */}
+        {(() => {
+          const txt = `${eur(active ? active.total : total)} €`;
+          const tam = Math.min(19, 92 / (txt.length * 0.6));
+          return <text className="cg-dnum" x="100" y={active ? 95 : 97} textAnchor="middle" style={{ fontSize: tam }}>{txt}</text>;
+        })()}
         <text className="cg-dlab" x="100" y={active ? 111 : 113} textAnchor="middle">
           {active ? active.name.slice(0, 20) : "gastado"}
         </text>
