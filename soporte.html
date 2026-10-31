@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Ayuda · Dineriko</title>
+<meta name="description" content="Ayuda y contacto de Dineriko: dudas frecuentes, recuperar la cuenta, borrarla y cómo escribirnos.">
+<link rel="icon" href="./icon-192.png">
+<style>
+  @font-face{font-family:'Karla';src:url('./font-karla.woff2') format('woff2');font-weight:200 800;font-display:swap;}
+  @font-face{font-family:'Bricolage Grotesque';src:url('./font-bricolage.woff2') format('woff2');font-weight:200 800;font-display:swap;}
+  :root{--ink:#101A18;--muted:#5F6F68;--bg:#ECF6EF;--card:#FFFFFF;--line:#DCE8E0;--link:#2F7FAE;}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:'Karla',system-ui,-apple-system,sans-serif;font-size:16px;line-height:1.6;}
+  main{max-width:720px;margin:0 auto;padding:32px 16px 64px;}
+  header{display:flex;align-items:center;gap:12px;margin-bottom:24px}
+  header img{width:44px;height:44px;border-radius:12px}
+  header a{color:inherit;text-decoration:none;font-family:'Bricolage Grotesque',system-ui,sans-serif;font-weight:700;font-size:20px}
+  h1{font-family:'Bricolage Grotesque',system-ui,sans-serif;font-size:clamp(28px,6vw,38px);line-height:1.15;margin:0 0 6px}
+  h2{font-family:'Bricolage Grotesque',system-ui,sans-serif;font-size:20px;margin:32px 0 8px}
+  .fecha{color:var(--muted);margin:0 0 24px}
+  .resumen{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px 20px;}
+  .resumen strong{display:block;margin-bottom:4px}
+  ul{padding-left:20px} li{margin-bottom:6px}
+  a{color:var(--link)}
+  footer{margin-top:48px;color:var(--muted);font-size:14px}
+
+  details{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:14px 18px;margin-bottom:10px}
+  summary{cursor:pointer;font-weight:700}
+  details p{margin:10px 0 0}
+</style>
+</head>
+<body>
+<main>
+<header><img src="./icon-192.png" alt=""><a href="./">Dineriko</a></header>
+<h1>Ayuda</h1>
+<p class="fecha">¿Algo no va o tienes una duda? Escríbenos a <a href="mailto:rodrigoharmat@gmail.com?subject=Dineriko">rodrigoharmat@gmail.com</a>. Contesta una persona, normalmente en uno o dos días.</p>
+
+<h2>Dudas frecuentes</h2>
+<details><summary>¿Dónde se guardan mis gastos?</summary>
+<p>Sin cuenta, solo en tu móvil. Con cuenta, también en nuestro servidor, pero cifrados en tu móvil antes de salir: ni nosotros podemos leerlos.</p></details>
+<details><summary>¿Tengo que crear una cuenta?</summary>
+<p>No. La cuenta sirve para no perder nada si cambias de móvil y para ver tus gastos en varios dispositivos. Se crea en Ajustes → Tu cuenta, con Apple, con Google o con tu email.</p></details>
+<details><summary>He olvidado la contraseña</summary>
+<p>En la pantalla de entrar, pulsa «He olvidado la contraseña» y escribe el código de recuperación que te dimos al crear la cuenta. Eliges una contraseña nueva y listo.</p></details>
+<details><summary>He perdido la contraseña y el código de recuperación</summary>
+<p>Pulsa «Lo he perdido todo». Te mandamos un email para confirmar que eres tú, esperamos 72 horas por seguridad (con un enlace para cancelarlo si no has sido tú) y, tras revisarlo, eliges una contraseña nueva en el mismo dispositivo. Solo funciona si no desactivaste esta opción en Ajustes.</p></details>
+<details><summary>¿Cómo hago una copia de seguridad?</summary>
+<p>En Ajustes → Datos y privacidad → Guardar copia. Se descarga un archivo que puedes guardar donde quieras y restaurar en cualquier momento.</p></details>
+<details><summary>¿Cómo borro mi cuenta?</summary>
+<p>En Ajustes → Tu cuenta → Borrar cuenta. Se borra al momento del servidor, junto con todo lo guardado en él. Lo que haya en tu móvil se queda, por si lo quieres conservar.</p></details>
+<details><summary>¿Cuánto cuesta?</summary>
+<p>Nada. Sin publicidad y sin vender datos.</p></details>
+
+<h2>Más</h2>
+<p><a href="./privacidad.html">Aviso de Privacidad</a> · <a href="./">Abrir Dineriko</a></p>
+</main>
+</body>
+</html>
