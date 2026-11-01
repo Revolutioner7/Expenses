@@ -234,6 +234,7 @@ export function MetaEditor({ meta, aportado, ingresoMensualEstimado, necesidadFi
     const plazoFinal = overridePlazo != null ? overridePlazo : (plazoNum > 0 ? plazoNum : null);
     const recortesFinal = overrideRecortes !== undefined ? overrideRecortes : (meta?.recortesPendientes || []);
     onSave({
+      ...(meta || {}),   // conserva campos que este editor no toca (fechaLimite, autonomo, aportes…)
       id: meta?.id || uid(),
       tipo, name: n, total: totalNum, categoryId,
       plazoMeses: plazoFinal,

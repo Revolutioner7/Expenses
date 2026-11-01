@@ -3,7 +3,7 @@ import React from "react";
 import { createRoot } from "react-dom/client";
 import { act } from "react";
 import App from "../src/App.jsx";
-import { repartoIngreso, porcentajesPorDefecto, tramoPara, coincideCuota, CUOTAS, resumenTrimestre, trimestreDe, mediaIngresosMensual } from "../src/lib/autonomo.js";
+import { repartoIngreso, porcentajesPorDefecto, tramoPara, coincideCuota, CUOTAS, resumenTrimestre, trimestreDe, mediaIngresosMensual, partesParaMetas, aplicarIngresoAMetas, quitarIngresoDeMetas, rentaPropuesta, mesesHasta } from "../src/lib/autonomo.js";
 
 /* ── motor, sin interfaz ── */
 describe("Soy autónomo · motor", () => {
@@ -208,5 +208,93 @@ describe("Soy autónomo · Ajustes", () => {
     const d = guardado(disco);
     expect(d.autonomo.activo).toBe(false);
     expect(d.recurring.find((r) => r.id === "fq")).toBeUndefined();
+  });
+});
+
+/* ── del reparto a Metas ── */
+describe("Soy autónomo · metas en un toque", () => {
+  const CFG = { activo: true, ivaPct: 0, irpfPct: 20, umbral: 2000, rentaPct: null, colchonPct: 0 };
+  let n = 0; const nid = () => `id${++n}`;
+  const base = () => ({ categories: [], metas: [], months: {} });
+
+  it("9.000 € a un cliente de fuera: 1.800 € al trimestral y 1.350 € a la renta (15 % propuesto)", () => {
+    const p = partesParaMetas({ id: "a", amount: 9000, date: "2026-11-05" }, CFG, 9000);
+    expect(p.map((x) => [x.nombre, x.importe, x.fechaLimite])).toEqual([
+      ["Impuestos 4T 2026", 1800, "2027-01-20"],
+      ["Renta 2026", 1350, "2027-06-30"],
+    ]);
+  });
+  it("la renta propuesta sube con lo que se factura y se puede fijar a mano; el colchón es opcional", () => {
+    expect(rentaPropuesta(20000)).toBe(0);
+    expect(rentaPropuesta(108000)).toBe(15);
+    const p = partesParaMetas({ id: "a", amount: 5000, date: "2026-11-05" }, { ...CFG, rentaPct: 10, colchonPct: 5 }, 0);
+    expect(p.map((x) => x.importe)).toEqual([1000, 500, 250]);
+    expect(partesParaMetas({ id: "b", amount: 40, date: "2026-11-05" }, CFG, 0)).toEqual([]);
+  });
+  it("una sola meta por trimestre: dos ingresos suman a la misma, y repetir uno no cuenta doble", () => {
+    let d = base();
+    const i1 = { id: "i1", amount: 9000, date: "2026-11-05" }, i2 = { id: "i2", amount: 9000, date: "2026-12-05" };
+    d = aplicarIngresoAMetas(d, "i1", partesParaMetas(i1, CFG, 9000), "2026-11-05", nid);
+    d = aplicarIngresoAMetas(d, "i2", partesParaMetas(i2, CFG, 9000), "2026-12-05", nid);
+    d = aplicarIngresoAMetas(d, "i2", partesParaMetas(i2, CFG, 9000), "2026-12-05", nid);
+    const trim = d.metas.filter((m) => m.name === "Impuestos 4T 2026");
+    expect(trim.length).toBe(1);
+    expect(trim[0].total).toBe(3600);
+    expect(trim[0].plazoMeses).toBe(1);
+    expect(d.metas.find((m) => m.name === "Renta 2026").total).toBe(2700);
+    expect(new Set(d.metas.map((m) => m.categoryId)).size).toBe(d.metas.length);
+    expect(d.categories.every((c) => c.bucket === "ahorro")).toBe(true);
+  });
+  it("borrar el ingreso quita lo apartado; la meta vacía desaparece, pero no si ya tiene dinero", () => {
+    let d = base();
+    const i1 = { id: "i1", amount: 9000, date: "2026-11-05" }, i2 = { id: "i2", amount: 9000, date: "2026-11-20" };
+    d = aplicarIngresoAMetas(d, "i1", partesParaMetas(i1, CFG, 9000), "2026-11-05", nid);
+    d = aplicarIngresoAMetas(d, "i2", partesParaMetas(i2, CFG, 9000), "2026-11-20", nid);
+    const trim = d.metas.find((m) => m.name === "Impuestos 4T 2026");
+    d = { ...d, months: { "2026-11": { incomes: [], expenses: [{ id: "e", amount: 500, categoryId: trim.categoryId, date: "2026-11-21" }] } } };
+    d = quitarIngresoDeMetas(d, "i2");
+    expect(d.metas.find((m) => m.name === "Impuestos 4T 2026").total).toBe(1800);
+    d = quitarIngresoDeMetas(d, "i1");
+    expect(d.metas.find((m) => m.name === "Impuestos 4T 2026")).toBeTruthy();   // tiene 500 € ahorrados
+    expect(d.metas.find((m) => m.name === "Renta 2026")).toBeUndefined();        // vacía, fuera
+    expect(d.categories.length).toBe(1);
+  });
+  it("mesesHasta cuenta meses de calendario, mínimo 1", () => {
+    expect(mesesHasta("2026-11-01", "2027-01-20")).toBe(2);
+    expect(mesesHasta("2027-01-10", "2027-01-20")).toBe(1);
+  });
+});
+
+describe("Soy autónomo · metas en un toque (interfaz)", () => {
+  beforeEach(() => {
+    vi.setSystemTime(new Date(2026, 9, 27));
+    div = document.createElement("div"); div.id = "root"; document.body.appendChild(div); root = createRoot(div);
+    window.localStorage.clear();
+  });
+  afterEach(() => { act(() => root.unmount()); document.body.removeChild(div); vi.unstubAllGlobals(); vi.useRealTimers(); });
+  const AUT = { activo: true, clientesEspana: false, retencion: false, nuevoAutonomo: false, ivaPct: 0, irpfPct: 20, umbral: 2000, cuotaId: "plana", cuotaFijoId: null, gestoria: 0, gestoriaFijoId: null };
+
+  it("la tarjeta del trimestre ofrece apartar en Metas y crea las metas con los importes", async () => {
+    const disco = await montar(seed({ autonomo: AUT }), ONB);
+    await act(async () => { click([...document.querySelectorAll(".cg-tab")].find((t) => t.textContent === "Ingresos")); });
+    expect(txt()).toContain("1 ingreso sin apartar en Metas");
+    await act(async () => { click(btn("Apartar en Metas")); });
+    expect(txt()).toContain("¿Lo apartamos en Metas?");
+    expect(txt()).toContain("Impuestos 4T 2026");
+    expect(txt()).toContain("Renta 2026");
+    await act(async () => { click(btn("Sí, añadir a Metas")); });
+    await esperaGuardado();
+    const d = guardado(disco);
+    expect(d.metas.map((m) => [m.name, m.total])).toEqual([["Impuestos 4T 2026", 600], ["Renta 2026", 120]]);
+    expect(txt()).not.toContain("sin apartar en Metas");
+  });
+
+  it("al borrar el ingreso, lo apartado sale de Metas", async () => {
+    const metas = [{ id: "m1", tipo: "objetivo", name: "Impuestos 4T 2026", total: 600, categoryId: "c1", plazoMeses: 3, recortesPendientes: [], autonomo: { clave: "trim-2026-4T" }, aportes: [{ incomeId: "i1", importe: 600 }] }];
+    const cats = [...CATS, { id: "c1", name: "Impuestos 4T 2026", emoji: "🧾", color: "#D99A2B", bucket: "ahorro", budget: null }];
+    const disco = await montar(seed({ autonomo: AUT, metas, categories: cats }), ONB);
+    await act(async () => { click([...document.querySelectorAll(".cg-tab")].find((t) => t.textContent === "Ingresos")); });
+    expect(txt()).not.toContain("sin apartar en Metas");
+    expect(disco).toBeTruthy();
   });
 });

@@ -19,8 +19,8 @@ import { autoApplyAll, migrate } from "./lib/data.js";
 import { crearCopia, compartirApp, leerCopia } from "./lib/backup.js";
 import { esNativo, borrarSecretoBio, programarRecordatorio, quitarRecordatorio } from "./lib/nativo.js";
 import { canalActual, betaDesbloqueada, desbloquearBeta, cambiarCanal, TOQUES_PARA_DESBLOQUEAR } from "./lib/canal.js";
-import { cuotaPorId, mediaIngresosMensual, configPorDefecto } from "./lib/autonomo.js";
-import { AjustesAutonomo, ImpuestosTrimestreCard } from "./components/autonomo.jsx";
+import { cuotaPorId, mediaIngresosMensual, configPorDefecto, partesParaMetas, aplicarIngresoAMetas, quitarIngresoDeMetas, ingresoEnMetas } from "./lib/autonomo.js";
+import { AjustesAutonomo, ImpuestosTrimestreCard, OfertaMetasAutonomo } from "./components/autonomo.jsx";
 
 import { EyeIcon, ExpandableList, CoachBox, AvisoActualizacionCard, AvisoGastosPeriodicosCard, AjusteSaldoCard, MetaRow, BancoPicker, FormaPagoToggle, GrupoAjustes, Sheet, BulkFormaPagoPicker, BulkFechaHoraPicker, SwipeableRow, CatMark, MenuOrdenar, MenuFiltrar } from "./components/ui.jsx";
 import { CategoryEditor, MetaEditor, ExpenseEditor, IncomeEditor, FixedEditor } from "./components/editors.jsx";
@@ -36,6 +36,7 @@ export default function App() {
   const [monthKey, setMonthKey] = useState(monthKeyOf(new Date()));
   const [tab, setTab] = useState("gastos");
   const [sheet, setSheet] = useState(null); // {type:'cat'|'expense', payload}
+  const [ofertaAutonomo, setOfertaAutonomo] = useState(null); // ingresos de autónomo que se ofrecen apartar en Metas
   const firstSave = useRef(true);
   const timer = useRef(null);
   const [locked, setLocked] = useState(false);
@@ -352,7 +353,10 @@ export default function App() {
     }
     return { ...d, months };
   });
-  const addIncome = (inc) => mutMonth((m) => ({ ...m, incomes: [...m.incomes, inc] }));
+  const addIncome = (inc) => {
+    mutMonth((m) => ({ ...m, incomes: [...m.incomes, inc] }));
+    if (data?.autonomo?.activo && partesParaMetas(inc, data.autonomo, mediaMensual).length > 0) setOfertaAutonomo([inc]);
+  };
   const updateIncome = (inc) => setData((d) => {
     const target = inc.date.slice(0, 7); // si cambias la fecha, se muda de mes
     const months = {};
@@ -361,6 +365,8 @@ export default function App() {
     }
     const cur = months[target] || emptyMonth();
     months[target] = { ...cur, incomes: [...cur.incomes, inc] };
+    // si ya estaba apartado en Metas, lo apartado se recalcula con el importe y la fecha nuevos
+    if (ingresoEnMetas(d.metas, inc.id)) return aplicarIngresoAMetas({ ...d, months }, inc.id, partesParaMetas(inc, d.autonomo, mediaMensual), todayISO(), uid);
     return { ...d, months };
   });
   const removeIncome = (id) => setData((d) => {
@@ -368,7 +374,7 @@ export default function App() {
     for (const [k, m] of Object.entries(d.months)) {
       months[k] = { ...m, incomes: m.incomes.filter((x) => x.id !== id) };
     }
-    return { ...d, months };
+    return ingresoEnMetas(d.metas, id) ? quitarIngresoDeMetas({ ...d, months }, id) : { ...d, months };
   });
 
   const oculto = !!data?.hideBalance;
@@ -628,6 +634,11 @@ export default function App() {
     else if (next.gestoriaFijoId) { quitar(next.gestoriaFijoId); next.gestoriaFijoId = null; }
     return autoApplyAll({ ...d, recurring, autonomo: next });
   });
+  const partesAutonomo = useCallback((inc) => partesParaMetas(inc, autonomo, mediaMensual), [autonomo, mediaMensual]);
+  const apartarEnMetas = (ingresos) => {
+    setData((d) => ingresos.reduce((acc, inc) => aplicarIngresoAMetas(acc, inc.id, partesParaMetas(inc, acc.autonomo, mediaMensual), todayISO(), uid), d));
+    setOfertaAutonomo(null);
+  };
   const desactivarAutonomo = () => {
     if (!window.confirm("Se deja de calcular la reserva de impuestos. ¿Quitar también los fijos de cuota y gestoría?")) {
       setData((d) => ({ ...d, autonomo: { ...(d.autonomo || configPorDefecto()), activo: false } }));
@@ -1890,7 +1901,7 @@ export default function App() {
               bancos={bancos} masUsadoBancoId={usoFormaPago.masUsadoBancoId} onAddBanco={saveBanco}
               formaPagoActivada={data.formaPagoActivada} />
 
-            {autonomo?.activo && <ImpuestosTrimestreCard months={data.months} cfg={autonomo} hoyISO={todayISO()} />}
+            {autonomo?.activo && <ImpuestosTrimestreCard months={data.months} cfg={autonomo} hoyISO={todayISO()} metas={metas} onApartar={setOfertaAutonomo} />}
 
             <div className="cg-toggle" style={{ marginBottom: 4 }}>
               <button className={vistaIngresos === "movimientos" ? "on" : ""} onClick={() => setVistaIngresos("movimientos")}>Movimientos</button>
@@ -2945,6 +2956,11 @@ export default function App() {
               onAplicar={(cambios) => aplicarCampoBulkFijos(cambios)} />
           )}
         </Sheet>
+      )}
+
+      {ofertaAutonomo && (
+        <OfertaMetasAutonomo ingresos={ofertaAutonomo} partesDe={partesAutonomo}
+          onSi={() => apartarEnMetas(ofertaAutonomo)} onNo={() => setOfertaAutonomo(null)} />
       )}
 
       {mostrarOfertaMasivaMiniMetas && (

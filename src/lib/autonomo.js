@@ -79,6 +79,8 @@ export function configPorDefecto() {
     cuotaFijoId: null,
     gestoria: 0,
     gestoriaFijoId: null,
+    rentaPct: null,        // null = propuesto según ingresos (rentaPropuesta)
+    colchonPct: 0,
   };
 }
 
@@ -138,4 +140,99 @@ export function mediaIngresosMensual(months, hoyISO, n = 3) {
   if (claves.length === 0) return 0;
   const total = claves.reduce((s, k) => s + (months[k].incomes || []).reduce((a, i) => a + i.amount, 0), 0);
   return total / claves.length;
+}
+
+/* ── Del reparto a Metas ──
+   Cada ingreso de autónomo puede sumar a tres metas, todas con su categoría propia (regla de
+   Metas: nunca compartida):
+   - "Impuestos 4T 2026": una sola por trimestre, fecha límite el día del pago. IVA + reserva IRPF.
+   - "Renta 2026": una por año, fecha límite el 30 de junio del año siguiente. El 130 adelanta un
+     20 %; con ingresos altos la renta final es mayor y la diferencia se paga de golpe en junio.
+   - "Colchón de autónomo": sin fecha, opcional (vacaciones, bajas, meses flojos).
+   La cuota de autónomo y la gestoría no van aquí: ya son fijos. Cada meta guarda qué ingreso
+   aportó cuánto (aportes), para poder deshacerlo si el ingreso se borra o cambia. */
+
+/* puntos de IRPF que faltan sobre el 20 % del 130, según lo que se factura al año (base sin IVA).
+   Estimación prudente con la escala estatal + autonómica media de 2026; editable en Ajustes. */
+export function rentaPropuesta(anualBase) {
+  const a = Math.max(0, anualBase || 0);
+  if (a < 30000) return 0;
+  if (a < 45000) return 4;
+  if (a < 70000) return 9;
+  if (a < 100000) return 12;
+  return 15;
+}
+
+export const rentaPctDe = (cfg, mediaMensual, baseIngreso) =>
+  cfg?.rentaPct != null && cfg.rentaPct !== "" ? Number(cfg.rentaPct) || 0
+    : rentaPropuesta((mediaMensual > 0 ? mediaMensual : baseIngreso || 0) * 12);
+
+/* meses que quedan hasta una fecha ISO (mínimo 1) */
+export function mesesHasta(hoyISO, fechaISO) {
+  const [hy, hm] = hoyISO.split("-").map(Number);
+  const [fy, fm] = fechaISO.split("-").map(Number);
+  return Math.max(1, (fy - hy) * 12 + (fm - hm));
+}
+
+/* lo que un ingreso debería sumar a cada meta. [] si no supera el umbral o no hay nada que apartar. */
+export function partesParaMetas(inc, cfg, mediaMensual = 0) {
+  const r = repartoIngreso(inc?.amount, cfg);
+  if (!r) return [];
+  const tri = trimestreDe(inc.date);
+  const anio = Number(inc.date.slice(0, 4));
+  const q = tri.etiqueta.split(" ")[0];
+  const redondo = (n) => Math.round(n * 100) / 100;
+  const partes = [
+    { clave: `trim-${anio}-${q}`, nombre: `Impuestos ${tri.etiqueta}`, importe: redondo(r.impuestos), fechaLimite: tri.pago, emoji: "🧾" },
+    { clave: `renta-${anio}`, nombre: `Renta ${anio}`, importe: redondo(r.base * rentaPctDe(cfg, mediaMensual, r.base) / 100), fechaLimite: `${anio + 1}-06-30`, emoji: "🧾" },
+    { clave: "colchon", nombre: "Colchón de autónomo", importe: redondo(r.base * (Number(cfg.colchonPct) || 0) / 100), fechaLimite: null, emoji: "🛟" },
+  ];
+  return partes.filter((p) => p.importe > 0);
+}
+
+export const ingresoEnMetas = (metas, incomeId) => (metas || []).some((m) => (m.aportes || []).some((a) => a.incomeId === incomeId));
+
+/* quita lo que aportó un ingreso. Una meta que se queda sin aportes y sin nada ahorrado
+   en su categoría desaparece (con su categoría); si ya tiene dinero, se queda. */
+export function quitarIngresoDeMetas(d, incomeId) {
+  let categories = d.categories;
+  const metas = [];
+  for (const m of d.metas || []) {
+    const mio = (m.aportes || []).find((a) => a.incomeId === incomeId);
+    if (!m.autonomo || !mio) { metas.push(m); continue; }
+    const aportes = m.aportes.filter((a) => a.incomeId !== incomeId);
+    const conDinero = Object.values(d.months || {}).some((mes) => (mes.expenses || []).some((e) => e.categoryId === m.categoryId));
+    if (aportes.length === 0 && !conDinero) {
+      categories = categories.filter((c) => c.id !== m.categoryId);
+      continue;
+    }
+    metas.push({ ...m, aportes, total: Math.max(0, Math.round((m.total - mio.importe) * 100) / 100) });
+  }
+  return { ...d, metas, categories };
+}
+
+/* suma las partes de un ingreso a sus metas, creándolas si hace falta. Si el ingreso ya había
+   aportado, se sustituye (no se cuenta dos veces). nuevoId genera ids. */
+export function aplicarIngresoAMetas(d, incomeId, partes, hoyISO, nuevoId) {
+  let out = quitarIngresoDeMetas(d, incomeId);
+  let metas = [...(out.metas || [])];
+  let categories = [...out.categories];
+  for (const p of partes) {
+    const i = metas.findIndex((m) => m.autonomo?.clave === p.clave);
+    const plazoMeses = p.fechaLimite ? mesesHasta(hoyISO, p.fechaLimite) : null;
+    if (i >= 0) {
+      const m = metas[i];
+      metas[i] = { ...m, total: Math.round((m.total + p.importe) * 100) / 100, plazoMeses: p.fechaLimite ? plazoMeses : m.plazoMeses,
+        aportes: [...(m.aportes || []), { incomeId, importe: p.importe }] };
+      continue;
+    }
+    const categoryId = nuevoId();
+    categories.push({ id: categoryId, name: p.nombre, emoji: p.emoji, color: "#D99A2B", bucket: "ahorro", budget: null });
+    metas.push({
+      id: nuevoId(), tipo: "objetivo", name: p.nombre, total: p.importe, categoryId, plazoMeses,
+      recortesPendientes: [], creadoEl: hoyISO, repiteCada: null, cicloDesde: null,
+      fechaLimite: p.fechaLimite, autonomo: { clave: p.clave }, aportes: [{ incomeId, importe: p.importe }],
+    });
+  }
+  return { ...out, metas, categories };
 }
