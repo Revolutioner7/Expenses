@@ -17,7 +17,8 @@ import {
 } from "./lib/utils.js";
 import { autoApplyAll, migrate } from "./lib/data.js";
 import { crearCopia, compartirApp, leerCopia } from "./lib/backup.js";
-import { esNativo, borrarSecretoBio, programarRecordatorio, quitarRecordatorio } from "./lib/nativo.js";
+import { esNativo, borrarSecretoBio, programarRecordatorio, quitarRecordatorio, programarAvisoCuenta, quitarAvisoCuenta } from "./lib/nativo.js";
+import { fechaAviso, tocaAviso, TEXTO_AVISO, DIAS_ENTRE_AVISOS } from "./lib/avisoCuenta.js";
 import { canalActual, betaDesbloqueada, desbloquearBeta, cambiarCanal, TOQUES_PARA_DESBLOQUEAR } from "./lib/canal.js";
 import { cuotaPorId, mediaIngresosMensual, configPorDefecto, partesParaMetas, aplicarIngresoAMetas, quitarIngresoDeMetas, ingresoEnMetas } from "./lib/autonomo.js";
 import { AjustesAutonomo, ImpuestosTrimestreCard, OfertaMetasAutonomo } from "./components/autonomo.jsx";
@@ -769,8 +770,28 @@ export default function App() {
     await borrarSecretoBio(prf?.credId); // en la app de iPhone, quita también el secreto del llavero
   };
 
-  /* ── recordatorio diario (solo en la app de iPhone): lo programa el propio teléfono ── */
   const nativo = esNativo();
+
+  /* ── fase 4: aviso a quien no tiene cuenta (tarjeta en la app; en iPhone, también notificación) ── */
+  const verAvisoCuenta = !!data && cuentasDisponibles() && tocaAviso(data, todayISO());
+  const proximoAvisoCuenta = data ? fechaAviso(data) : null;
+  useEffect(() => {
+    if (!nativo || !data || !cuentasDisponibles()) return;
+    if (data._cuenta) { quitarAvisoCuenta(); return; }
+    if (proximoAvisoCuenta) programarAvisoCuenta(proximoAvisoCuenta, TEXTO_AVISO);
+  }, [nativo, !!data, !!data?._cuenta, proximoAvisoCuenta]);
+  const cerrarAvisoCuenta = (crear) => {
+    const hoy = todayISO();
+    setData((d) => ({ ...d, avisoSinCuenta: hoy }));
+    if (crear) { setTab("ajustes"); setGrupoAbierto("cuenta"); window.scrollTo?.(0, 0); return; }
+    if (nativo) {
+      const [y, m, dd] = hoy.split("-").map(Number);
+      const prox = new Date(Date.UTC(y, m - 1, dd + DIAS_ENTRE_AVISOS)).toISOString().slice(0, 10);
+      programarAvisoCuenta(prox, TEXTO_AVISO, { pedir: true });
+    }
+  };
+
+  /* ── recordatorio diario (solo en la app de iPhone): lo programa el propio teléfono ── */
   const recordatorio = data?.recordatorio || { activo: false, hora: "21:00" };
   useEffect(() => {
     if (!nativo || !data) return;
@@ -1631,6 +1652,16 @@ export default function App() {
           <>
             {avisoActualizacion && <AvisoActualizacionCard onClose={cerrarAvisoActualizacion} />}
             {avisoGastosPeriodicos && <AvisoGastosPeriodicosCard onClose={cerrarAvisoGastosPeriodicos} />}
+            {verAvisoCuenta && (
+              <div className="cg-card cg-pending cg-aviso-cuenta">
+                <h2 className="cg-title">Tus datos, solo en este móvil</h2>
+                <p className="cg-hint" style={{ marginBottom: 10 }}>{TEXTO_AVISO}</p>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button className="cg-btn" style={{ flex: 1 }} onClick={() => cerrarAvisoCuenta(true)}>Crear cuenta</button>
+                  <button className="cg-ghost" onClick={() => cerrarAvisoCuenta(false)}>Ahora no</button>
+                </div>
+              </div>
+            )}
 
             {avisarCopia && (
               <div className="cg-card cg-pending">

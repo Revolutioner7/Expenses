@@ -106,3 +106,25 @@ export async function programarRecordatorio(hora, minuto) {
 export async function quitarRecordatorio() {
   try { await LocalNotifications.cancel({ notifications: [{ id: ID_RECORDATORIO }] }); } catch (e) {}
 }
+
+/* aviso a quien no tiene cuenta: una notificación suelta en la fecha que toca (a las 19:00).
+   Si se pide el permiso solo cuando "pedir" es true; si no, se programa solo si ya estaba dado. */
+const ID_AVISO_CUENTA = 4343;
+
+export async function programarAvisoCuenta(fechaISO, texto, { pedir = false } = {}) {
+  try {
+    let permiso = await LocalNotifications.checkPermissions();
+    if (permiso.display !== "granted" && pedir) permiso = await LocalNotifications.requestPermissions();
+    if (permiso.display !== "granted") return false;
+    await LocalNotifications.cancel({ notifications: [{ id: ID_AVISO_CUENTA }] }).catch(() => {});
+    const [y, m, d] = fechaISO.split("-").map(Number);
+    let at = new Date(y, m - 1, d, 19, 0, 0);
+    if (at <= new Date()) return false;   // ya ha pasado: lo cubre la tarjeta de dentro de la app
+    await LocalNotifications.schedule({ notifications: [{ id: ID_AVISO_CUENTA, title: "Dineriko", body: texto, schedule: { at, allowWhileIdle: true } }] });
+    return true;
+  } catch (e) { return false; }
+}
+
+export async function quitarAvisoCuenta() {
+  try { await LocalNotifications.cancel({ notifications: [{ id: ID_AVISO_CUENTA }] }); } catch (e) {}
+}

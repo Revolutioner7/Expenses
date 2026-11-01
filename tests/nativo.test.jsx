@@ -28,6 +28,7 @@ vi.mock("@capacitor/filesystem", () => ({
 vi.mock("@capacitor/local-notifications", () => ({
   LocalNotifications: {
     requestPermissions: async () => ({ display: "granted" }),
+    checkPermissions: async () => ({ display: "granted" }),
     schedule: async (o) => { llamadas.notis.push(o); },
     cancel: async () => { llamadas.cancel++; },
   },
