@@ -154,7 +154,14 @@ export const monthsDiff = (from, to) => {
   return (by - ay) * 12 + (bm - am);
 };
 export const dueIn = (r, key) =>
-  r.active !== false && r.since <= key && monthsDiff(r.since, key) % (r.every || 1) === 0;
+  r.active !== false && r.since <= key && (!r.hasta || key <= r.hasta) && monthsDiff(r.since, key) % (r.every || 1) === 0;
+/* pagos de un fijo con fecha de fin desde un mes (incluido) hasta su último mes; null si no tiene fin */
+export const pagosRestantes = (r, fromKey) => {
+  if (!r.hasta) return null;
+  let n = 0;
+  for (let k = r.since > fromKey ? r.since : fromKey, i = 0; k <= r.hasta && i < 600; k = shiftMonth(k, 1), i++) if (dueIn(r, k)) n++;
+  return n;
+};
 export const nextDue = (r, fromKey) => {
   let k = r.since > fromKey ? r.since : fromKey;
   for (let i = 0; i < 24; i++) {

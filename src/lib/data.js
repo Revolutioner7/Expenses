@@ -45,6 +45,12 @@ export function autoApplyAll(d) {
       changed = true;
     }
   }
+  // un fijo con fecha de fin desaparece cuando su último mes ya ha pasado (sus gastos anotados se
+  // quedan). Va después de anotar, para que el último pago no se pierda. Sus mini-metas, también fuera.
+  const terminados = new Set(d.recurring.filter((r) => r.hasta && r.hasta < nowKey).map((r) => r.id));
+  if (terminados.size) {
+    return { ...d, months, recurring: d.recurring.filter((r) => !terminados.has(r.id)), metas: (metas || []).filter((m) => !terminados.has(m.fijoId)) };
+  }
   return changed ? { ...d, months, metas } : d;
 }
 

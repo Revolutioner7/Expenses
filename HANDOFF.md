@@ -1147,7 +1147,7 @@ en lo que aquí se concreta; en todo lo demás, esa regla sigue vigente.**
   - Colchón opcional (vacaciones, bajas, meses flojos), % que elige el usuario.
   - Cuota de autónomo y gestoría NO van a metas: ya son fijos (evitar contarlos dos veces).
 
-- **Fijos con fecha de fin** (1 nov, sin construir): campo opcional "Finaliza en" al crear o
+- **Fijos con fecha de fin** (1 nov, **construido en beta**: `r.hasta` 'AAAA-MM', `dueIn` y `pagosRestantes` en utils, limpieza en `autoApplyAll`): campo opcional "Finaliza en" al crear o
   editar un fijo (caso real: un depósito que se paga 3 meses). En blanco = sin fin, no bloquea
   guardar. Hoy `recurring` no tiene ningún campo de fin; `dueIn()` debería dejar de anotarlo pasado
   ese mes. Decidido por Rodrigo: se elige el **mes** de fin, con un texto debajo de los pagos que

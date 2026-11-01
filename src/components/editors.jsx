@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Sheet, BancoPicker, FormaPagoToggle, CatMark } from "./ui.jsx";
 import { SWATCHES, BUCKETS, EMOJI_ALL, FREQS } from "../constants.js";
-import { suggestEmojis, norm, uid, parseAmount, eur, todayISO, monthLabel, shiftMonth } from "../lib/utils.js";
+import { suggestEmojis, norm, uid, parseAmount, eur, todayISO, monthLabel, shiftMonth, pagosRestantes } from "../lib/utils.js";
 
 /* ── editor de categoría ── */
 export function CategoryEditor({ category, onSave, onDelete, onClose, expenseCount }) {
@@ -562,6 +562,7 @@ export function FixedEditor({ item, defaultKind, categories, monthKey, bancos, m
   const [day, setDay] = useState(String(item?.day || 1));
   const [every, setEvery] = useState(item?.every || 1);
   const [since, setSince] = useState(item?.since || monthKey);
+  const [hasta, setHasta] = useState(item?.hasta || "");
   const [auto, setAuto] = useState(item?.auto !== false);
   const [newCat, setNewCat] = useState(false);
   const [catExpanded, setCatExpanded] = useState(() => categoryId ? !categories.slice(0, 4).some((c) => c.id === categoryId) : false);
@@ -571,7 +572,9 @@ export function FixedEditor({ item, defaultKind, categories, monthKey, bancos, m
   const isNew = !item;
   const value = parseAmount(amount);
   const d = Math.min(28, Math.max(1, parseInt(day, 10) || 1));
-  const valid = name.trim() && !isNaN(value) && value > 0 && (kind === "ingreso" || categoryId) && /^\d{4}-\d{2}$/.test(since);
+  const hastaOk = !hasta || (/^\d{4}-\d{2}$/.test(hasta) && hasta >= since);
+  const valid = name.trim() && !isNaN(value) && value > 0 && (kind === "ingreso" || categoryId) && /^\d{4}-\d{2}$/.test(since) && hastaOk;
+  const quedan = hasta && hastaOk ? pagosRestantes({ since, every, hasta }, monthKey > since ? monthKey : since) : null;
   const cuando = every === 1
     ? `Se propone todos los meses, el día ${d}.`
     : `Toca en ${Array.from({ length: Math.min(12 / Math.min(every, 12) || 1, 4) }, (_, i) => monthLabel(shiftMonth(since, i * every)).toLowerCase()).join(", ")}…`;
@@ -625,6 +628,21 @@ export function FixedEditor({ item, defaultKind, categories, monthKey, bancos, m
       <p className="cg-hint" style={{ marginTop: 6 }}>
         {cuando} El día va del 1 al 28, para que exista en febrero.
       </p>
+
+      <div style={{ marginTop: 12 }}>
+        <label className="cg-lab" htmlFor="cg-fhasta">Finaliza en (opcional)</label>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          <input id="cg-fhasta" type="month" className="cg-input" value={hasta} min={since}
+            onChange={(e) => setHasta(e.target.value)} />
+          {hasta && <button type="button" className="cg-vermas" onClick={() => setHasta("")}>Quitar</button>}
+        </div>
+        <p className="cg-hint" style={{ marginTop: 6 }}>
+          {!hasta ? "En blanco, se repite sin fin."
+            : !hastaOk ? "Tiene que ser el mismo mes en que empieza o uno posterior."
+            : quedan === 0 ? "Ya no quedan pagos: al guardarlo desaparecerá de la lista."
+            : `${quedan === 1 ? "Queda 1 pago" : `Quedan ${quedan} pagos`}. Después del último, desaparece de la lista.`}
+        </p>
+      </div>
 
       <div style={{ marginTop: 12 }}>
         <span className="cg-lab">¿Se anota solo?</span>
@@ -698,6 +716,7 @@ export function FixedEditor({ item, defaultKind, categories, monthKey, bancos, m
             kind, name: name.trim(), amount: value, day: d, every, auto,
             categoryId: kind === "gasto" ? categoryId : null,
             since,
+            hasta: hasta || null,
             active: item?.active !== false,
             formaPago: kind === "gasto" ? formaPago : null,
             bancoId: kind === "gasto" && (formaPago === "banco" || formaPago === "domiciliado") ? bancoId : null,

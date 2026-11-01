@@ -1265,7 +1265,7 @@ export default function App() {
         <div style={{ minWidth: 0 }}>
           <div className="cg-name">{r.name}</div>
           <div className="cg-meta">
-            día {r.day} · {freqLabel(r)}{r.auto === false ? " · manual" : ""} · {r.kind === "ingreso" ? "ingreso" : catById[r.categoryId]?.name || "—"}
+            día {r.day} · {freqLabel(r)}{r.hasta ? ` · hasta ${shortMonth(r.hasta)} ${r.hasta.slice(0, 4)}` : ""}{r.auto === false ? " · manual" : ""} · {r.kind === "ingreso" ? "ingreso" : catById[r.categoryId]?.name || "—"}
           </div>
         </div>
         <span className="cg-amt">{r.kind === "ingreso" ? "" : "−"}{eur(r.amount)} €</span>
