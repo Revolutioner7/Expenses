@@ -1147,6 +1147,12 @@ en lo que aquí se concreta; en todo lo demás, esa regla sigue vigente.**
   - Colchón opcional (vacaciones, bajas, meses flojos), % que elige el usuario.
   - Cuota de autónomo y gestoría NO van a metas: ya son fijos (evitar contarlos dos veces).
 
+- **Fijos con fecha de fin** (1 nov, sin construir): campo opcional "Finaliza en" al crear o
+  editar un fijo (caso real: un depósito que se paga 3 meses). En blanco = sin fin, no bloquea
+  guardar. Hoy `recurring` no tiene ningún campo de fin; `dueIn()` debería dejar de anotarlo pasado
+  ese mes. Pendiente de Rodrigo: si se elige mes o número de pagos, y qué pasa con el fijo al
+  terminar (propuesta: se queda en la lista como "Terminado" y deja de anotarse).
+
 ### Ronda del 27 de octubre de 2026
 - Canal beta construido y publicado (caché `dineriko-v10`, 126 pruebas en verde). `bundle-beta.js` arranca idéntico a `bundle.js`.
 - Siguiente en cola, aprobada por Rodrigo: función "Soy autónomo" (cuestionario de sí/no en Ajustes, cuota de autónomo en desplegable filtrable con tarifa plana de 80 € más los 15 tramos de 2026, reserva de IRPF e IVA por ingreso sobre el umbral, tarjeta "Impuestos del trimestre", fijos de cuota y gestoría). Genérica, con valores por defecto deducidos de las respuestas. Llega primero por el canal beta.
