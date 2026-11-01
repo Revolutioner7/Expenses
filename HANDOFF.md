@@ -1271,4 +1271,10 @@ proyectos ocupados por Reliko; Cloudflare cuesta 0 € y la cuenta ya existía).
 - **App** (`src/components/recuperacion.jsx`): `PerdidoTodo` (petición guardada en localStorage `dineriko-recuperacion` con la llave privada de un solo uso; solo ese dispositivo puede terminar), `AjusteRecuperacion` (activar/desactivar con contraseña), `PanelRecuperaciones` (beta, Ajustes → Ayuda y app → Canal beta). Casilla marcada por defecto en el alta (email y Apple/Google).
 - **Aviso diario** (`uso.yml`): falla y manda email si hay peticiones esperando aprobación.
 - **Pruebas:** `server/prueba-recuperacion.mjs` (local con `EMAIL_PRUEBA` y `ESPERA_PRUEBA_MS`, solo en local), `tests/recuperacion.test.jsx` (6).
-- **Pendiente:** emails a direcciones de relay de Apple (privaterelay.appleid.com) exigen registrar dineriko.com en Apple ("Sign in with Apple for Email Communication").
+- **Hecho el 1 nov:** registrados en Apple ("Sign in with Apple for Email Communication") los dominios `dineriko.com` y `send.dineriko.com` y la dirección `hola@dineriko.com`, los tres con SPF en verde. Resend da el dominio como verificado desde el 31 oct.
+
+### Fase 4: aviso a quien no tiene cuenta (construida el 1 nov, beta v17)
+- `src/lib/avisoCuenta.js`: toca a los 7 días del primer apunte o con 20 gastos (sin contar fijos), lo que llegue antes; después cada 30 días desde el último aviso (`data.avisoSinCuenta`). Nunca con cuenta ni sin nada anotado.
+- Tarjeta en la pestaña Gastos con el texto acordado, "Crear cuenta" (lleva a Ajustes → Tu cuenta) y "Ahora no". Las dos cuentan como aviso visto.
+- iPhone: notificación local (`programarAvisoCuenta` en `nativo.js`, id 4343, a las 19:00 del día que toca). Solo se programa si el permiso ya estaba dado; al tocar "Ahora no" se pide el permiso y se programa la del mes siguiente. Se cancela al tener cuenta.
+- Pruebas: `tests/aviso-cuenta.test.jsx` (4).
