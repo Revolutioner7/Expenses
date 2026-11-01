@@ -1129,6 +1129,12 @@ en lo que aquí se concreta; en todo lo demás, esa regla sigue vigente.**
 - **Hipoteca en dos categorías**: en agosto como Vivienda, en septiembre como "1a Hipoteca" (por
   ligarla a la meta de deuda). No es duplicado, pero descuadra la comparativa de meses. Pensar
   si la comparativa debe agrupar por meta.
+- **Autónomo → metas en un toque** (1 nov, sin construir): al apuntar un ingreso de autónomo
+  (ej. 9.000 €), la pestaña Autónomo calcula cuánto separar para el trimestral (IVA + 130), el
+  mensual (cuota) y otros, y pregunta si añadirlo a Metas con esos importes. Hoy
+  `repartoIngreso()` ya calcula IVA e IRPF, pero solo lo enseña. Preguntas abiertas a Rodrigo:
+  qué es "Z"; si sumar cada mes a una sola meta por trimestre (fecha límite = día 20 del pago)
+  o crear una meta nueva cada vez; cómo encaja con la idea de cubos (¿la sustituye o va antes?).
 
 ### Ronda del 27 de octubre de 2026
 - Canal beta construido y publicado (caché `dineriko-v10`, 126 pruebas en verde). `bundle-beta.js` arranca idéntico a `bundle.js`.
