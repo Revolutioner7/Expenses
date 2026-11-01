@@ -1150,8 +1150,9 @@ en lo que aquí se concreta; en todo lo demás, esa regla sigue vigente.**
 - **Fijos con fecha de fin** (1 nov, sin construir): campo opcional "Finaliza en" al crear o
   editar un fijo (caso real: un depósito que se paga 3 meses). En blanco = sin fin, no bloquea
   guardar. Hoy `recurring` no tiene ningún campo de fin; `dueIn()` debería dejar de anotarlo pasado
-  ese mes. Pendiente de Rodrigo: si se elige mes o número de pagos, y qué pasa con el fijo al
-  terminar (propuesta: se queda en la lista como "Terminado" y deja de anotarse).
+  ese mes. Decidido por Rodrigo: se elige el **mes** de fin, con un texto debajo de los pagos que
+  quedan ("quedan 3 pagos"); al pasar el último pago el fijo **desaparece** de la lista (los gastos
+  ya anotados en meses anteriores se quedan donde están).
 
 ### Ronda del 27 de octubre de 2026
 - Canal beta construido y publicado (caché `dineriko-v10`, 126 pruebas en verde). `bundle-beta.js` arranca idéntico a `bundle.js`.
