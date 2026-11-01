@@ -1129,12 +1129,18 @@ en lo que aquí se concreta; en todo lo demás, esa regla sigue vigente.**
 - **Hipoteca en dos categorías**: en agosto como Vivienda, en septiembre como "1a Hipoteca" (por
   ligarla a la meta de deuda). No es duplicado, pero descuadra la comparativa de meses. Pensar
   si la comparativa debe agrupar por meta.
-- **Autónomo → metas en un toque** (1 nov, sin construir): al apuntar un ingreso de autónomo
-  (ej. 9.000 €), la pestaña Autónomo calcula cuánto separar para el trimestral (IVA + 130), el
-  mensual (cuota) y otros, y pregunta si añadirlo a Metas con esos importes. Hoy
-  `repartoIngreso()` ya calcula IVA e IRPF, pero solo lo enseña. Preguntas abiertas a Rodrigo:
-  qué es "Z"; si sumar cada mes a una sola meta por trimestre (fecha límite = día 20 del pago)
-  o crear una meta nueva cada vez; cómo encaja con la idea de cubos (¿la sustituye o va antes?).
+- **Autónomo → metas en un toque** (1 nov, sin construir, va antes que los cubos): al apuntar un
+  ingreso de autónomo (ej. 9.000 €), la pestaña Autónomo calcula cuánto separar y pregunta si
+  añadirlo a Metas con esos importes. Hoy `repartoIngreso()` ya calcula IVA e IRPF, pero solo lo
+  enseña. Decidido por Rodrigo: **una sola meta por trimestre** ("Impuestos 4T", fecha límite el
+  día 20 del pago) a la que cada ingreso suma su parte. "Z" = cualquier otra cosa que se le escape;
+  propuesta de Claude, pendiente de que Rodrigo la confirme:
+  - Trimestral (IVA si hay + 20 % del 130) → meta del trimestre.
+  - **Renta anual** → meta "Renta <año>" con fecha 30 de junio. El 130 adelanta un 20 %, pero
+    con ingresos altos la renta final ronda un 30-35 % (estimación a 9.000 €/mes en Cataluña:
+    ~15 puntos más, ~1.300 €/mes). Porcentaje editable, con valor propuesto según ingresos.
+  - Colchón opcional (vacaciones, bajas, meses flojos), % que elige el usuario.
+  - Cuota de autónomo y gestoría NO van a metas: ya son fijos (evitar contarlos dos veces).
 
 ### Ronda del 27 de octubre de 2026
 - Canal beta construido y publicado (caché `dineriko-v10`, 126 pruebas en verde). `bundle-beta.js` arranca idéntico a `bundle.js`.
