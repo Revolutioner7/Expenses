@@ -1169,6 +1169,15 @@ en lo que aquí se concreta; en todo lo demás, esa regla sigue vigente.**
   domiciliados, y sus ids quedan en `cuotaFijoId`/`gestoriaFijoId`). "Ya no soy autónomo" apaga
   y pregunta si quitar esos fijos. Pendiente de que Rodrigo la pruebe y la apruebe en Notion.
 
+### Ronda semanal del 2 de noviembre de 2026 (tarea automática)
+- Sin mejora nueva: "Soy autónomo" sigue en *Propuesta* en Notion y la beta solo lleva una a la vez.
+- **Bug corregido y publicado (caché `dineriko-v18`, estable y beta):** `cicloDePago()` calculaba el
+  último día del ciclo restando 24 h al día del cobro; el domingo del cambio de hora de marzo dura
+  23 h, así que con cobro el 26, 27 o 28 algunos años el ciclo acababa un día antes (ej. cobro el 27
+  en marzo de 2028: acababa el 25 en vez del 26) y los gastos de ese último día no contaban en
+  Disponible. Ahora se resta un día de calendario. Pruebas en `tests/ciclo-horario.test.jsx` (5, con
+  la zona horaria de Madrid). Lección: nunca sumar o restar 86400000 a fechas locales.
+
 ## 20. App de iPhone en el App Store (desde el 29 de octubre de 2026)
 
 Rodrigo pagó la cuenta de Apple Developer (99 €/año, a su nombre, persona física; descartado
