@@ -1,0 +1,33 @@
+Hello App Review team,
+
+Thank you for reviewing Dineriko. Please find the screen recording attached, and the requested information below.
+
+1. Screen recording
+Attached. Recorded on an iPhone running the latest iOS. It starts by launching the app and shows the typical flow: logging an expense, the monthly view, savings goals, and the optional account (sign up, sign in and account deletion from Settings > Your account > Delete account).
+
+2. Purpose and target audience
+Dineriko is a personal expense tracker for people in Spain who want to know, in a few seconds a day, how much money they have left this month. Users log expenses and income, set recurring bills, and create savings goals. All data stays on the device, encrypted, and the app works fully offline and without an account. The value it provides is simplicity and privacy: no bank connections, no ads, no tracking.
+
+3. How to access the main features
+No login is required. On first launch the app asks a few short setup questions and then opens the main screen.
+- Log an expense: Expenses tab, type a concept and an amount, tap "Añadir gasto".
+- Income and recurring bills: Income tab, and the "Fijos" (recurring) section.
+- Savings goals: Goals tab ("Metas"), "+ Nueva".
+- Summary and charts: Summary tab ("Resumen").
+- Optional account (to sync between devices): Settings ("Ajustes") > "Tu cuenta". It can be created with email and password, Sign in with Apple, or Google. The account can be deleted from the same screen ("Borrar cuenta"), which removes the account and all its data from our server.
+If you prefer a ready-made account, you can create one in a few seconds with any email; no verification is needed.
+
+4. External services
+- Cloudflare Workers and D1 (EU jurisdiction): stores the optional account and encrypted sync data. The server cannot read users' data; it is encrypted on the device before it is sent.
+- Sign in with Apple and Google Sign-In: optional ways to identify the user for the account.
+- Resend (EU region): sends transactional emails only for the optional "I lost everything" account recovery.
+No AI services, payment processors, advertising or analytics SDKs are used.
+
+5. Regional differences
+The app works the same in every region. Its interface is in Spanish and some optional features (the self-employed tax reserve) follow Spanish tax rules, but nothing is restricted or different by region.
+
+6. Regulated industry
+Dineriko is not a financial service: it does not connect to banks, move money, give investment advice or hold funds. It is a personal notebook for the user's own expenses, so no licenses apply.
+
+Best regards,
+Rodrigo Harmat Gainza
