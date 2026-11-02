@@ -180,8 +180,9 @@ export function cicloDePago(diaCobro, hoy = new Date()) {
   let y2 = y, m2 = m + 1;
   if (m2 > 11) { m2 = 0; y2 += 1; }
   const diasSigMes = new Date(y2, m2 + 1, 0).getDate();
-  const finExclusivo = new Date(y2, m2, Math.min(diaCobro, diasSigMes));
-  const fin = new Date(finExclusivo.getTime() - 86400000);
+  // el día antes del próximo cobro, contado en días de calendario (no restando 24 h: el día
+  // del cambio de hora de marzo dura 23 h y restar 24 h caía un día antes de la cuenta)
+  const fin = new Date(y2, m2, Math.min(diaCobro, diasSigMes) - 1);
   return { inicio: isoLocal(inicio), fin: isoLocal(fin) };
 }
 
