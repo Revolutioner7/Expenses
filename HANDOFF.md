@@ -1154,6 +1154,14 @@ en lo que aquí se concreta; en todo lo demás, esa regla sigue vigente.**
   quedan ("quedan 3 pagos"); al pasar el último pago el fijo **desaparece** de la lista (los gastos
   ya anotados en meses anteriores se quedan donde están).
 
+- **Cerrar sesión debería vaciar el móvil** (2 nov, apunte de Rodrigo, sin construir): hoy
+  "Cerrar sesión" deja todos los datos en el dispositivo ("se quedan aquí y en tu cuenta") y la app
+  sigue igual al reabrirla. Rodrigo espera que, al cerrar sesión, la app vuelva a la pantalla de
+  inicio (entrar o crear cuenta) sin datos a la vista. Ojo al construirlo: antes de borrar hay que
+  asegurar que la última sincronización ha terminado, o se perderían los cambios sin subir.
+  Duda abierta: Rodrigo también comenta que tras entrar con Google no debería pedir el código de
+  Dineriko; pendiente de aclarar qué espera (el código es lo que cifra los datos, Google no da llave).
+
 ### Ronda del 27 de octubre de 2026
 - Canal beta construido y publicado (caché `dineriko-v10`, 126 pruebas en verde). `bundle-beta.js` arranca idéntico a `bundle.js`.
 - Siguiente en cola, aprobada por Rodrigo: función "Soy autónomo" (cuestionario de sí/no en Ajustes, cuota de autónomo en desplegable filtrable con tarifa plana de 80 € más los 15 tramos de 2026, reserva de IRPF e IVA por ingreso sobre el umbral, tarjeta "Impuestos del trimestre", fijos de cuota y gestoría). Genérica, con valores por defecto deducidos de las respuestas. Llega primero por el canal beta.
