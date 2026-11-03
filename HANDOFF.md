@@ -1162,6 +1162,15 @@ en lo que aquí se concreta; en todo lo demás, esa regla sigue vigente.**
   Duda abierta: Rodrigo también comenta que tras entrar con Google no debería pedir el código de
   Dineriko; pendiente de aclarar qué espera (el código es lo que cifra los datos, Google no da llave).
 
+- **Foto del ticket al añadir un gasto** (3 nov, apunte de Rodrigo, sin construir): icono de
+  cámara junto a "Nuevo gasto"; se hace la foto del ticket y la app lee el total, propone el nombre
+  del comercio, la categoría (con el motor de categorización y lo aprendido) y, si el ticket lo
+  dice, la forma de pago (tarjeta, efectivo). Propuesta de Claude: en iPhone, lectura con el Vision
+  de Apple dentro del propio teléfono (gratis, sin conexión, la foto no sale del móvil); en la web,
+  a decidir (Tesseract.js en el navegador es lento y pesado). Un servicio de IA externo leería mejor
+  pero saca la foto del dispositivo y tiene coste: rompe el principio 1. Pendiente de Rodrigo:
+  si basta con iPhone primero y si se guarda la foto o solo los datos.
+
 ### Ronda del 27 de octubre de 2026
 - Canal beta construido y publicado (caché `dineriko-v10`, 126 pruebas en verde). `bundle-beta.js` arranca idéntico a `bundle.js`.
 - Siguiente en cola, aprobada por Rodrigo: función "Soy autónomo" (cuestionario de sí/no en Ajustes, cuota de autónomo en desplegable filtrable con tarifa plana de 80 € más los 15 tramos de 2026, reserva de IRPF e IVA por ingreso sobre el umbral, tarjeta "Impuestos del trimestre", fijos de cuota y gestoría). Genérica, con valores por defecto deducidos de las respuestas. Llega primero por el canal beta.
